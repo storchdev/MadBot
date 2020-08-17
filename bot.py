@@ -14,7 +14,7 @@ bot = commands.Bot(command_prefix=get_prefix)
 bot.db = db
 bot.prefixes = prefixes
 
-for cog in ['config', 'listeners']:
+for cog in ['config', 'listeners', 'madlibs']:
     bot.load_extension('cogs.' + cog)
 
 bot.load_extension('jishaku')   

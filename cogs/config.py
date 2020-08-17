@@ -11,8 +11,7 @@ class Config(commands.Cog):
 
         if not new_prefix:
             current = ctx.prefix 
-            await ctx.send(f'The current prefix is `{current}`.')
-            return 
+            return await ctx.send(f'The current prefix is `{current}`.')
 
         if not ctx.author.guild_permissions.manage_guild:
             raise commands.MissingPermissions(['manage_guild'])
@@ -33,4 +32,3 @@ class Config(commands.Cog):
 
 def setup(bot):
     bot.add_cog(Config(bot))
-        

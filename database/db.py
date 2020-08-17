@@ -6,6 +6,7 @@ loop = asyncio.get_event_loop()
 
 
 async def connect():
+    open('./main.db', 'a+')
     con = await aiosqlite3.connect('./main.db')
     return con
 
@@ -18,6 +19,14 @@ async def create_tables():
             "id" INTEGER PRIMARY KEY AUTOINCREMENT,
             "guild_id" INTEGER,
             "prefix" TEXT
+        )''',
+        '''CREATE TABLE IF NOT EXISTS madlibs (
+            "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "guild_id" INTEGER,
+            "name" TEXT,
+            "template" TEXT,
+            "creator_id" INTEGER,
+            "plays" INTEGER
         )'''
     ]
 
@@ -28,17 +37,16 @@ async def create_tables():
 
 async def get_prefixes():
     query = 'SELECT guild_id, prefix FROM prefixes'
-    prefixes = {}
+    p = {}
 
     async with db.cursor() as cur:
         await cur.execute(query)
 
         for prefix in await cur.fetchall():
-            prefixes[prefix[0]] = prefixes[1]
+            p[prefix[0]] = p[1]
 
-    return prefixes 
+    return p
 
 
 loop.run_until_complete(create_tables())
 prefixes = loop.run_until_complete(get_prefixes())
-    
