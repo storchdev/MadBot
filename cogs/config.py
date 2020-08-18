@@ -26,6 +26,7 @@ class Config(commands.Cog):
         self.bot.prefixes[ctx.guild.id] = prefix
         async with self.bot.db.cursor() as cur:
             await cur.execute(query, (prefix, ctx.guild.id))
+            await self.bot.db.commit()
 
         await ctx.send(f'Prefix changed to `{prefix}`. Do `{prefix}prefix` again to change it.')
         
