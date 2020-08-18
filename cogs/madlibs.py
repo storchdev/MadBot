@@ -6,7 +6,8 @@ import re
 import json
 
 
-finder = re.compile('{.+?}')
+finder = re.compile('{(.+?)}')
+grammarly = re.compile('([.!?] *)')
 cross_mark = '\U0000274c'
 
 with open('./defaults.json') as f:
@@ -24,26 +25,31 @@ def create_embed(page, is_custom, rows=None):
 
     embed = discord.Embed(color=discord.Colour.blue())
     embed.set_footer(text=f'\U000026ab - Custom Templates\n\U000026aa - Default Templates')
+    embed.add_field(name='THE HOST: TYPE OUT THE NUMBER OF THE TEMPLATE TO CHOOSE IT', value='\u200b')
 
     if not is_custom:
 
         for template in defaults.keys():
-            line = f'`{i}.` **{template}** ({defaults.lengths[template]} blanks)'
+            line = f'`{i}.` **{template}** ({lengths[template]} blanks)'
             paginator.add_line(line)
             i += 1
+
         pages = paginator.pages
         embed.set_author(name=f'Page {page}/{len(pages)}')
-        embed.title = f'{len(defaults.defaults)} Default Templates'
+        embed.title = f'{len(defaults)} Default Templates'
         embed.description = pages[page - 1]
 
     else:
+        i = len(defaults) + 1
+
         embed = discord.Embed(color=discord.Colour.blue())
         embed.title = f'{len(rows)} Custom Templates'
+        embed.add_field(name='THE HOST: TYPE OUT THE NUMBER OF THE TEMPLATE TO CHOOSE IT', value='\u200b')
         embed.set_footer(text=f'\U000026ab - Custom Templates\n\U000026aa - Default Templates')
 
         if rows:
             for row in rows:
-                blanks = len(defaults.finder.findall(row[1]))
+                blanks = len(finder.findall(row[1]))
                 line = f'`{i}.` **{row[0]}** ({blanks} blanks)'
                 paginator.add_line(line)
                 i += 1
@@ -161,17 +167,6 @@ class MadLibs(commands.Cog):
         self.defaults = defaults
         self.lengths = lengths
 
-        i = 1
-        templates = {}
-        for name in self.defaults.keys():
-            templates[i] = {
-                "name": name,
-                "template": self.defaults[name],
-                "blanks": self.lengths[name],
-                "is_custom": False
-            }
-            i += 1
-
     @commands.command()
     async def madlibs(self, ctx):
 
@@ -182,6 +177,18 @@ class MadLibs(commands.Cog):
 
         self.in_game.append(ctx.channel.id)
 
+        async with self.bot.db.cursor() as cur:
+            await cur.execute('SELECT name, template FROM madlibs WHERE guild_id = ?', (ctx.guild.id,))
+            rows = await cur.fetchall()
+
+        i = 1
+        templates = {}
+        for name in self.defaults.keys():
+            templates[i] = self.defaults[name]
+            i += 1
+        for row in rows:
+            templates[i] = row[1]
+            i += 1
         participants = [ctx.author]
         embed = discord.Embed(color=discord.Colour.green())
         embed.title = 'A MadLibs game is starting in this channel!'
@@ -197,19 +204,104 @@ class MadLibs(commands.Cog):
                                                        m.content.lower() == 'start' and m.author.id == ctx.author.id)
 
         while True:
-
             try:
                 message = await self.bot.wait_for('message', check=check, timeout=end - time.time())
-
                 if message.author.id == ctx.author.id:
                     break
                 else:
                     participants.append(message.author)
-
+                    await ctx.send(f'{message.author.mention} has joined the game!')
             except asyncio.TimeoutError:
                 break
-
         await Templates().start(ctx)
+
+        def check(m):
+            if m.channel.id == ctx.channel.id and m.author.id == ctx.author.id:
+                if m.content.isdigit():
+                    if int(m.content) < i:
+                        return True
+            return False
+
+        try:
+            message = await self.bot.wait_for('message', check=check, timeout=120)
+            i = int(message.content)
+        except asyncio.TimeoutError:
+            return await ctx.send(f'{ctx.author.mention}: You took too long to respond with a template number!')
+
+        final_story = templates[i]
+        blanks = finder.findall(final_story)
+
+        async def wait_for_join(game):
+
+            def wait_check(m):
+                return m.channel.id == ctx.channel.id and m.content.lower() == 'join' and \
+                       m.author.id not in [p.id for p in game]
+
+            while True:
+                author = (await self.bot.wait_for('message', check=wait_check)).author
+                game.append(author)
+                await ctx.send(f'{message.author.mention} has joined the game!')
+
+        task = self.bot.loop.create_task(wait_for_join(participants))
+
+        progress = 1
+        total = len(blanks)
+        for blank in blanks:
+
+            try:
+                user = participants[0]
+            except IndexError:
+                self.in_game.remove(ctx.channel.id)
+                return await ctx.send(f'Nobody is left in the game. It has been canceled.')
+
+            opt = 'n' if re.match('^([aeiou])', blank) else ''
+            await ctx.send(f'{user.mention}, type out a{opt} **{blank}**. ({progress}/{total})')
+
+            def check(m):
+                return m.channel.id == ctx.channel.id and m.author.id == user.id
+
+            try:
+                message = await self.bot.wait_for('message', check=check, timeout=30)
+                participants.pop(0)
+                participants.append(message.author)
+
+                if blank in ['name', 'proper noun', 'place']:
+                    content = ' '.join([word.capitalize() for word in message.content.split()])
+                else:
+                    content = message.content.lower()
+
+                final_story = final_story.replace(f'{{{blank}}}', content, 1)
+                progress += 1
+            except asyncio.TimeoutError:
+                participants.remove(user)
+                await ctx.send(f'{user.mention} has been removed from the game due to inactivity.')
+
+        final_story = ''.join([i.capitalize() for i in grammarly.split(final_story)])
+        task.cancel()
+        embedded_story = ''
+        pages = []
+
+        for word in final_story.split():
+            word += ' '
+
+            if len(word + embedded_story) > 2000:
+                pages.append(embedded_story)
+                embedded_story = ''
+            else:
+                embedded_story += word
+        pages.append(embedded_story)
+
+        count = await ctx.send('3...')
+        await asyncio.sleep(1)
+        await count.edit(content='2...')
+        await asyncio.sleep(1)
+        await count.edit(content='1...')
+        await asyncio.sleep(1)
+
+        await ctx.send('**an interesting story**')
+        for page in pages:
+            await ctx.send(page)
+        self.in_game.remove(ctx.channel.id)
 
     @commands.group(invoke_without_command=True)
     async def custom(self, ctx):
@@ -331,10 +423,8 @@ To **list all** custom templates, do this: ```
             blanks = finder.findall(row[0])
             embed.add_field(name='Number of Blanks', value=f'**{len(blanks)}**')
 
-            blanks = ', '.join([word.lstrip('{').rstrip('}') for word in blanks])
-
             if len(blanks) <= 1024:
-                embed.add_field(name='Blanks', value=blanks)
+                embed.add_field(name='Blanks', value=', '.join(blanks))
 
             await ctx.send(embed=embed)
 
