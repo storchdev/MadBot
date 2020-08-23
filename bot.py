@@ -17,7 +17,7 @@ bot.remove_command('help')
 bot.db = db
 bot.prefixes = prefixes
 
-for cog in ['config', 'listeners', 'madlibs']:
+for cog in ['config', 'listeners', 'madlibs', 'jishaku']:
     bot.load_extension('cogs.' + cog)
 
 
