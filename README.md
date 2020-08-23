@@ -9,12 +9,12 @@ I don't know why you would want to run an instance of this bot, but all you have
 - Open up command prompt, go in this directory, then type `python bot.py`
 ## Commands
 There are only a few commands on MadLibs. The prefix defaults to `ml!`, but you may customize it.
-### ml!prefix <prefix>
+### - ml!prefix <prefix>
 This command changes the current guild prefix if the prefix argument is provided. If not, it will display the current guild prefix.
 - Permissions required: `Manage Server`
-### ml!madlibs
+### - ml!madlibs
 This command starts a MadLibs game, with the user who invoked the command as the host. Anyone can join these games by typing `join` at any point of the process.
-### ml!custom <subcommand>
+### - ml!custom <subcommand>
 This command contains a variety of subcommands, all having to do with custom story templates
 #### ml!custom add <name> <story template>
 This subcommand adds a custom template to the guild. You do not need any permissions to do this, although the story template must have at least one *blank*, like `{noun}`.

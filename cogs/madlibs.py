@@ -4,10 +4,10 @@ import time
 import asyncio
 import re
 import json
+from datetime import datetime
 
 
 finder = re.compile('{(.+?)}')
-grammarly = re.compile('([.!?] *)')
 cross_mark = '\U0000274c'
 
 with open('./defaults.json') as f:
@@ -17,6 +17,14 @@ with open('./defaults.json') as f:
     for default in defaults.keys():
         length = len(finder.findall(defaults[default]))
         lengths[default] = length
+
+    c = 1
+    t = {}
+    n = {}
+    for k in defaults.keys():
+        t[c] = defaults[k]
+        n[c] = k
+        c += 1
 
 
 def create_embed(page, is_custom, rows=None):
@@ -164,8 +172,6 @@ class MadLibs(commands.Cog):
         self.in_game = []
         self.finder = finder
         self.cross_mark = '\U0000274c'
-        self.defaults = defaults
-        self.lengths = lengths
 
     @commands.command()
     async def madlibs(self, ctx):
@@ -181,14 +187,14 @@ class MadLibs(commands.Cog):
             await cur.execute('SELECT name, template FROM madlibs WHERE guild_id = ?', (ctx.guild.id,))
             rows = await cur.fetchall()
 
-        i = 1
-        templates = {}
-        for name in self.defaults.keys():
-            templates[i] = self.defaults[name]
-            i += 1
+        templates = t
+        names = n
+        x = len(defaults) + 1
+
         for row in rows:
-            templates[i] = row[1]
-            i += 1
+            templates[x] = row[1]
+            names[x] = row[0]
+            x += 1
         participants = [ctx.author]
         embed = discord.Embed(color=discord.Colour.green())
         embed.title = 'A MadLibs game is starting in this channel!'
@@ -218,7 +224,7 @@ class MadLibs(commands.Cog):
         def check(m):
             if m.channel.id == ctx.channel.id and m.author.id == ctx.author.id:
                 if m.content.isdigit():
-                    if int(m.content) < i:
+                    if int(m.content) < x:
                         return True
             return False
 
@@ -229,6 +235,7 @@ class MadLibs(commands.Cog):
             return await ctx.send(f'{ctx.author.mention}: You took too long to respond with a template number!')
 
         final_story = templates[i]
+        template_name = names[i]
         blanks = finder.findall(final_story)
 
         async def wait_for_join(game):
@@ -240,13 +247,14 @@ class MadLibs(commands.Cog):
             while True:
                 author = (await self.bot.wait_for('message', check=wait_check)).author
                 game.append(author)
-                await ctx.send(f'{message.author.mention} has joined the game!')
+                await ctx.send(f'{author.mention} has joined the game!')
 
         task = self.bot.loop.create_task(wait_for_join(participants))
 
         progress = 1
         total = len(blanks)
-        for blank in blanks:
+        while True:
+            blank = blanks[progress - 1]
 
             try:
                 user = participants[0]
@@ -264,22 +272,32 @@ class MadLibs(commands.Cog):
                 message = await self.bot.wait_for('message', check=check, timeout=30)
                 participants.pop(0)
                 participants.append(message.author)
+                final_story = final_story.replace(f'{{{blank}}}', message.content, 1)
 
-                if blank in ['name', 'proper noun', 'place']:
-                    content = ' '.join([word.capitalize() for word in message.content.split()])
-                else:
-                    content = message.content.lower()
+                if progress == total:
+                    break
 
-                final_story = final_story.replace(f'{{{blank}}}', content, 1)
                 progress += 1
             except asyncio.TimeoutError:
                 participants.remove(user)
                 await ctx.send(f'{user.mention} has been removed from the game due to inactivity.')
 
-        final_story = ''.join([i.capitalize() for i in grammarly.split(final_story)])
         task.cancel()
+
+        async with self.bot.db.cursor() as cur:
+            query = 'UPDATE madlibs SET plays = plays + 1 WHERE guild_id = ? AND name = ?'
+            await cur.execute(query, (ctx.guild.id, template_name))
+            query = 'INSERT INTO plays (channel_id, participants, final_story, played_at, name, guild_id) ' \
+                    'VALUES (?, ?, ?, ?, ?, ?)'
+            await cur.execute(query, (ctx.channel.id, json.dumps([p.id for p in participants], indent=4),
+                                      final_story, int(time.time()), template_name, ctx.guild.id))
+            await self.bot.db.commit()
+
         embedded_story = ''
         pages = []
+
+        split = re.split('([.!?] *)', final_story)
+        final_story = ''.join([i.capitalize() for i in split])
 
         for word in final_story.split():
             word += ' '
@@ -297,8 +315,7 @@ class MadLibs(commands.Cog):
         await asyncio.sleep(1)
         await count.edit(content='1...')
         await asyncio.sleep(1)
-
-        await ctx.send('**an interesting story**')
+        await count.edit(content=f'**{template_name}**\nBy {", ".join([user.mention for user in participants])}')
         for page in pages:
             await ctx.send(page)
         self.in_game.remove(ctx.channel.id)
@@ -337,8 +354,9 @@ To **list all** custom templates, do this: ```
                 return await ctx.send(f'{self.cross_mark} '
                                       f'A custom template with name `{name}` already exists in this guild.')
 
-            query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays) VALUES (?, ?, ?, ?, ?)'
-            await cur.execute(query, (name, template, ctx.guild.id, ctx.author.id, 0))
+            query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
+                    'VALUES (?, ?, ?, ?, ?, ?)'
+            await cur.execute(query, (name, template, ctx.guild.id, ctx.author.id, 0, int(time.time())))
             await self.bot.db.commit()
             await ctx.send(f'Successfully added custom story template with name `{name}`!')
 
@@ -359,6 +377,8 @@ To **list all** custom templates, do this: ```
                 query = 'DELETE FROM madlibs WHERE name = ? AND guild_id = ?'
                 await cur.execute(query, (name, ctx.guild.id))
                 await self.bot.db.commit()
+
+                await ctx.send(f'Successfully deleted custom story template {name}.')
             else:
                 await ctx.send(f'{self.cross_mark} No custom template with name `{name}` found.')
 
@@ -382,6 +402,8 @@ To **list all** custom templates, do this: ```
             await cur.execute(query, (edited, name, ctx.guild.id))
             await self.bot.db.commit()
 
+            await ctx.send(f'Successfully edited custom story template `{name}`.')
+
     @custom.command(name='all')
     async def _all(self, ctx):
 
@@ -393,7 +415,7 @@ To **list all** custom templates, do this: ```
             if not rows:
                 return await ctx.send(f'{self.cross_mark} No custom templates found in this guild.')
 
-            await ctx.send("**All Custom Templates:**\n\n" + ' '.join(['`' + row[0] + '`' for row in rows]))
+            await ctx.send("**All Custom Templates:**\n\n" + '\n'.join(['`' + row[0] + '`' for row in rows]))
 
     @custom.command(name='info')
     async def _info(self, ctx, *, name):
@@ -402,7 +424,7 @@ To **list all** custom templates, do this: ```
             return await ctx.send(f'{self.cross_mark} I need the `Embed Links` permission to send info.')
 
         async with self.bot.db.cursor() as cur:
-            query = 'SELECT template, creator_id, plays FROM madlibs WHERE guild_id = ? AND name = ?'
+            query = 'SELECT template, creator_id, plays, created_at FROM madlibs WHERE guild_id = ? AND name = ?'
             await cur.execute(query, (ctx.guild.id, name))
             row = await cur.fetchone()
 
@@ -423,10 +445,69 @@ To **list all** custom templates, do this: ```
             blanks = finder.findall(row[0])
             embed.add_field(name='Number of Blanks', value=f'**{len(blanks)}**')
 
+            if row[3]:
+                created_at = datetime.fromtimestamp(row[3]).strftime('%m/%d/%Y at %I:%M:%S %p EST')
+                embed.add_field(name='Created At', value=created_at)
+
             if len(blanks) <= 1024:
                 embed.add_field(name='Blanks', value=', '.join(blanks))
 
             await ctx.send(embed=embed)
+
+    @commands.command()
+    async def plays(self, ctx, index: int, *, storyname=None):
+
+        async with self.bot.db.cursor() as cur:
+            if storyname:
+                query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
+                        'WHERE guild_id = ? AND name = ?'
+                await cur.execute(query, (ctx.guild.id, storyname))
+            else:
+                query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
+                        'WHERE guild_id = ?'
+                await cur.execute(query, (ctx.guild.id,))
+            rows = await cur.fetchall()
+
+        if not rows:
+            return await ctx.send('No plays found.')
+
+        try:
+            story = rows[index - 1]
+        except IndexError:
+            return await ctx.send(f'Only `{len(rows)}` stories exist for that request.')
+
+        embed = discord.Embed(color=discord.Colour.blue())
+
+        if len(story[2]) > 2048:
+            desc = story[2][:2047]
+        else:
+            desc = story[2]
+
+        embed.description = desc
+        embed.title = story[4]
+
+        participants = []
+        for user_id in json.loads(story[1]):
+            user = self.bot.get_user(user_id)
+            if user:
+                participants.append(user.mention)
+            else:
+                participants.append(f'<@{user_id}>')
+        mentions = ', '.join(participants)
+        embed.add_field(name='Participants', value=mentions)
+
+        ch = self.bot.get_channel(story[0]).mention
+        if ch:
+            embed.add_field(name='Channel', value=ch)
+
+        played_at = datetime.fromtimestamp(story[3]).strftime('%m/%d/%Y at %I:%M:%S %p EST')
+        embed.add_field(name='Played At', value=played_at)
+        await ctx.send(embed=embed)
+
+    @plays.error
+    async def plays_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, commands.BadArgument):
+            await ctx.send(f'The correct usage is: `{ctx.prefix}plays <index> <template name>`.')
 
 
 def setup(bot):

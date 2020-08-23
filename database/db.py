@@ -6,8 +6,8 @@ loop = asyncio.get_event_loop()
 
 
 async def connect():
-    open('./main.db', 'a+')
-    con = await aiosqlite3.connect('./main.db')
+    open('./database/main.db', 'a+')
+    con = await aiosqlite3.connect('./database/main.db')
     return con
 
 db = loop.run_until_complete(connect())
@@ -43,7 +43,7 @@ async def get_prefixes():
         await cur.execute(query)
 
         for prefix in await cur.fetchall():
-            p[prefix[0]] = p[1]
+            p[prefix[0]] = prefix[1]
 
     return p
 

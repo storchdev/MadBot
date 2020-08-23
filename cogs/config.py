@@ -18,7 +18,7 @@ class Config(commands.Cog):
 
         prefix = new_prefix.lstrip()
         
-        if ctx.guild.id in list(self.bot.prefixes.keys()):
+        if ctx.guild.id not in list(self.bot.prefixes.keys()):
             query = 'INSERT INTO prefixes (prefix, guild_id) VALUES (?, ?)'
         else:
             query = 'UPDATE prefixes SET prefix = ? WHERE guild_id = ?'
