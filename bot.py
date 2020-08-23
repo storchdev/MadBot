@@ -17,9 +17,9 @@ bot.remove_command('help')
 bot.db = db
 bot.prefixes = prefixes
 
-for cog in ['config', 'listeners', 'madlibs', 'jishaku']:
+for cog in ['config', 'listeners', 'madlibs']:
     bot.load_extension('cogs.' + cog)
-
+bot.load_extension('jishaku')
 
 @bot.command()
 async def pastebin(ctx, *, text):
