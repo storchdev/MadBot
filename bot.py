@@ -17,7 +17,7 @@ bot.remove_command('help')
 bot.db = db
 bot.prefixes = prefixes
 
-for cog in ['config', 'listeners', 'madlibs']:
+for cog in ('config', 'listeners', 'madlibs'):
     bot.load_extension('cogs.' + cog)
 bot.load_extension('jishaku')
 
@@ -45,16 +45,18 @@ async def _help(ctx):
     p = ctx.prefix
 
     cmds = {
-        f"{p}prefix": 'Shows/changes the current server prefix',
-        f"{p}madlibs": 'Lets you host a MadLibs game',
-        f"{p}custom": 'Manages custom story templates for the current server'
+        f"{p}**prefix**": 'Shows/changes the current server prefix',
+        f"{p}**madlibs**": 'Lets you host a MadLibs game',
+		f"{p}**plays**": "Gets a play from the history of the server's laughable moments",
+		f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL."
+        f"{p}**custom**": 'Manages custom story templates for the current server'
     }
     sub_cmds = {
-        f'*{p}custom* **add**': 'Adds a custom story template',
-        f'*{p}custom* **edit**': 'Edits an existing custom story template',
-        f'*{p}custom* **remove**': 'Removes a custom story template',
-        f'*{p}custom* **info**': 'Gets info on a custom story template',
-        f'*{p}custom* **all**': 'Lists all custom story templates in the server'
+        f'{p}*custom* **add**': 'Adds a custom story template',
+        f'{p}*custom* **edit**': 'Edits an existing custom story template',
+        f'{p}*custom* **remove**': 'Removes a custom story template',
+        f'{p}*custom* **info**': 'Gets info on a custom story template',
+        f'{p}*custom* **all**': 'Lists all custom story templates in the server'
     }
 
     for cmd in cmds.keys():
