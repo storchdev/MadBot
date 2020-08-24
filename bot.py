@@ -48,7 +48,7 @@ async def _help(ctx):
         f"{p}**prefix**": 'Shows/changes the current server prefix',
         f"{p}**madlibs**": 'Lets you host a MadLibs game',
 		f"{p}**plays**": "Gets a play from the history of the server's laughable moments",
-		f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL."
+		f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL.",
         f"{p}**custom**": 'Manages custom story templates for the current server'
     }
     sub_cmds = {
