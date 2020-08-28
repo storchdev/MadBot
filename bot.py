@@ -34,6 +34,7 @@ async def feedback(ctx, *, user_feedback):
     embed.set_author(name=str(ctx.author), icon_url=str(ctx.author.avatar_url_as(format='png')))
     embed.set_footer(text=f'Guild ID: {ctx.guild.id}')
     await bot.get_user(553058885418876928).send(embed=embed)
+    await ctx.send(':thumbs_up: Your feedback has been sent!')
 
 
 @feedback.error
