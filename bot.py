@@ -1,5 +1,5 @@
 from database import db
-from discord.ext import commands 
+from discord.ext import commands
 from config import TOKEN, PASTEBIN_API_KEY
 import discord
 from aiohttp import ClientSession
@@ -20,6 +20,29 @@ bot.prefixes = prefixes
 for cog in ('config', 'listeners', 'madlibs'):
     bot.load_extension('cogs.' + cog)
 bot.load_extension('jishaku')
+
+
+@bot.command()
+@commands.cooldown(2, 60, commands.BucketType.user)
+async def feedback(ctx, *, user_feedback):
+    embed = discord.Embed(
+        title='New Feedback!',
+        description=f'`{user_feedback}`',
+        color=ctx.author.color
+    )
+    embed.set_author(name=str(ctx.author), icon_url=str(ctx.author.avatar_url_as(format='png')))
+    embed.set_footer(text=f'Guild ID: {ctx.guild.id}')
+    await bot.get_user(553058885418876928).send(embed=embed)
+
+
+@feedback.error
+async def feedback_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f'You can only give feedback twice per hour. Please wait another '
+                       f'`{error.retry_after:.2f}` seconds.')
+    else:
+        print(error)
+
 
 @bot.command()
 async def pastebin(ctx, *, text):
@@ -47,8 +70,9 @@ async def _help(ctx):
     cmds = {
         f"{p}**prefix**": 'Shows/changes the current server prefix',
         f"{p}**madlibs**": 'Lets you host a MadLibs game',
-		f"{p}**plays**": "Gets a play from the history of the server's laughable moments",
-		f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL.",
+        f"{p}**plays**": "Gets a play from the history of the server's laughable moments",
+        f"{p}**feedback**": "Gives feedback about anything related to the bot, including source code",
+        f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL.",
         f"{p}**custom**": 'Manages custom story templates for the current server'
     }
     sub_cmds = {
@@ -64,5 +88,6 @@ async def _help(ctx):
     for cmd in sub_cmds.keys():
         embed.add_field(name=cmd, value=sub_cmds[cmd], inline=True)
     await ctx.send(embed=embed)
+
 
 bot.run(TOKEN)

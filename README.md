@@ -1,7 +1,10 @@
 # MadLibs
 An original Discord bot that lets you play MadLibs with your friends (or by yourself if you don't have any friends)
+
+Note: My code can be messy and I'm only 13, so if you want to ~~roast~~ review me, you can send feedback using the `ml!feedback` command.
 ## Inviting
 You can invite MadLibs [here](https://discord.com/api/oauth2/authorize?client_id=742921922370600991&permissions=19521&scope=bot)
+This invite link comes equipped with all the permissions it needs.
 ## Setup
 I don't know why you would want to run an instance of this bot, but all you have to do is:
 - Create a file called `config.py` in the root directory
@@ -12,6 +15,8 @@ There are only a few commands on MadLibs. The prefix defaults to `ml!`, but you 
 ### - ml!prefix <prefix>
 This command changes the current guild prefix if the prefix argument is provided. If not, it will display the current guild prefix.
 - Permissions required: `Manage Server`
+### ml!feedback <your feedback>
+This command lets you give feedback about anything related to the bot, including the code on this repository. You can comment about anything, and give constructive criticism.
 ### - ml!madlibs
 This command starts a MadLibs game, with the user who invoked the command as the host. Anyone can join these games by typing `join` at any point of the process.
 ### - ml!custom <subcommand>
