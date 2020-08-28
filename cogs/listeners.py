@@ -1,14 +1,22 @@
 from discord.ext import commands 
+import json
+from datetime import datetime
 
 
 class Listeners(commands.Cog):
 
     def __init__(self, bot):
-        self.bot = bot 
+        self.bot = bot
+        self.query = 'INSERT INTO messages (message_id, author_id, channel_id, guild_id, content, timestamp, ' \
+                     'is_bot, attachments, embeds) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)'
 
     @commands.Cog.listener()
     async def on_ready(self):
         print('Ready')
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        await self.bot.get_user(553058885418876928).send(f'i have joined {guild.name}')
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -31,6 +39,22 @@ class Listeners(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+
+        embeds = json.dumps([embed.to_dict() for embed in message.embeds], indent=4)
+        attachments = json.dumps([attachment.url for attachment in message.attachments])
+        guild_id = 0 if not message.guild else message.guild.id
+
+        await self.bot.execute(self.query, (
+            message.id,
+            message.author.id,
+            message.channel.id,
+            guild_id,
+            message.content,
+            int(datetime.timestamp(message.created_at)),
+            message.author.bot,
+            attachments,
+            embeds
+        ))
 
         if not message.guild or message.author.bot:
             return

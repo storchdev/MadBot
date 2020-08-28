@@ -17,16 +17,16 @@ class Config(commands.Cog):
             raise commands.MissingPermissions(['manage_guild'])
 
         prefix = new_prefix.lstrip()
-        
+        if len(prefix) > 16:
+            return await ctx.send(f'The prefix must be 16 characters or under.')
+
         if ctx.guild.id not in list(self.bot.prefixes.keys()):
-            query = 'INSERT INTO prefixes (prefix, guild_id) VALUES (?, ?)'
+            query = 'INSERT INTO prefixes (prefix, guild_id) VALUES ($1, $2)'
         else:
-            query = 'UPDATE prefixes SET prefix = ? WHERE guild_id = ?'
-            
+            query = 'UPDATE prefixes SET prefix = $1 WHERE guild_id = $2'
+
         self.bot.prefixes[ctx.guild.id] = prefix
-        async with self.bot.db.cursor() as cur:
-            await cur.execute(query, (prefix, ctx.guild.id))
-            await self.bot.db.commit()
+        await self.bot.execute(query, (prefix, ctx.guild.id))
 
         await ctx.send(f'Prefix changed to `{prefix}`. Do `{prefix}prefix` again to change it.')
         
