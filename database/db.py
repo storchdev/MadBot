@@ -1,13 +1,13 @@
-import aiosqlite3 
-import asyncio 
+from config import POSTGRES_CONFIG
+import asyncio
+import asyncpg
 
 
 loop = asyncio.get_event_loop()
 
 
 async def connect():
-    open('./database/main.db', 'a+')
-    con = await aiosqlite3.connect('./database/main.db')
+    con = await asyncpg.create_pool(**POSTGRES_CONFIG)
     return con
 
 db = loop.run_until_complete(connect())
@@ -16,21 +16,43 @@ db = loop.run_until_complete(connect())
 async def create_tables():
     queries = [
         '''CREATE TABLE IF NOT EXISTS prefixes (
-            "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-            "guild_id" INTEGER,
-            "prefix" TEXT
+            "id" SERIAL,
+            "guild_id" BIGINT,
+            "prefix" VARCHAR(16)
+        )''',
+        '''CREATE TABLE IF NOT EXISTS plays (
+            "id" SERIAL,
+            "channel_id" BIGINT,
+            "participants" JSON,
+            "final_story" TEXT,
+            "played_at" INTEGER,
+            "name" VARCHAR(32),
+            "guild_id" BIGINT
         )''',
         '''CREATE TABLE IF NOT EXISTS madlibs (
-            "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-            "guild_id" INTEGER,
-            "name" TEXT,
+            "id" SERIAL,
+            "guild_id" BIGINT,
+            "name" VARCHAR(32),
             "template" TEXT,
-            "creator_id" INTEGER,
-            "plays" INTEGER
+            "creator_id" BIGINT,
+            "plays" BIGINT,
+            "created_at" INTEGER
+        )''',
+        '''CREATE TABLE IF NOT EXISTS messages (
+            "id" SERIAL,
+            "message_id" BIGINT,
+            "author_id" BIGINT,
+            "channel_id" BIGINT,
+            "guild_id" BIGINT,
+            "content" TEXT,
+            "timestamp" INTEGER,
+            "is_bot" BOOLEAN,
+            "attachments" JSON,
+            "embeds" JSON
         )'''
     ]
 
-    async with db.cursor() as cur:
+    async with db.acquire() as cur:
         for query in queries:
             await cur.execute(query)
 
@@ -39,13 +61,40 @@ async def get_prefixes():
     query = 'SELECT guild_id, prefix FROM prefixes'
     p = {}
 
-    async with db.cursor() as cur:
-        await cur.execute(query)
-
-        for prefix in await cur.fetchall():
+    async with db.acquire() as cur:
+        for prefix in await cur.fetch(query):
             p[prefix[0]] = prefix[1]
 
     return p
+
+
+async def fetchall(query, params: tuple):
+    if not params:
+        async with db.acquire() as con:
+            rows = await con.fetch(query)
+    else:
+        async with db.acquire() as con:
+            rows = await con.fetch(query, *params)
+    return rows
+
+
+async def fetchone(query, params: tuple):
+    if not params:
+        async with db.acquire() as con:
+            row = await con.fetchrow(query)
+    else:
+        async with db.acquire() as con:
+            row = await con.fetchrow(query, *params)
+    return row
+
+
+async def execute(query, params: tuple):
+    if not params:
+        async with db.acquire() as con:
+            await con.execute(query)
+    else:
+        async with db.acquire() as con:
+            await con.execute(query, *params)
 
 
 loop.run_until_complete(create_tables())

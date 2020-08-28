@@ -1,10 +1,10 @@
-from database import db
+from database import db as db_file
 from discord.ext import commands
 from config import TOKEN, PASTEBIN_API_KEY
 import discord
 from aiohttp import ClientSession
 
-db, prefixes = db.db, db.prefixes
+db, prefixes = db_file.db, db_file.prefixes
 
 
 def get_prefix(client, message):
@@ -16,6 +16,7 @@ bot = commands.Bot(command_prefix=get_prefix)
 bot.remove_command('help')
 bot.db = db
 bot.prefixes = prefixes
+bot.fetchone, bot.fetchall, bot.execute = db_file.fetchone, db_file.fetchall, db_file.execute
 
 for cog in ('config', 'listeners', 'madlibs'):
     bot.load_extension('cogs.' + cog)
