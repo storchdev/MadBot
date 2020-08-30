@@ -48,7 +48,21 @@ async def create_tables():
             "timestamp" INTEGER,
             "is_bot" BOOLEAN,
             "attachments" JSON,
-            "embeds" JSON
+            "embeds" JSON,
+            "is_edited" BOOLEAN,
+            "is_deleted" BOOLEAN
+        )''',
+        '''CREATE TABLE IF NOT EXISTS member_logs (
+            "id" SERIAL,
+            "member_id" BIGINT,
+            "nickname" VARCHAR(32),
+            "roles" JSON
+        )''',
+        '''CREATE TABLE IF NOT EXISTS user_logs (
+            "id" SERIAL,
+            "user_id" BIGINT,
+            "avatar_url" TEXT,
+            "username" VARCHAR(64)
         )'''
     ]
 

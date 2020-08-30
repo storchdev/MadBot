@@ -3,12 +3,38 @@ import json
 from datetime import datetime
 
 
+query = 'INSERT INTO messages (message_id, author_id, channel_id, guild_id, content, timestamp, ' \
+        'is_bot, attachments, embeds, is_edited, is_deleted) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)'
+
+
+async def insert_message(bot, message):
+    embeds = json.dumps([embed.to_dict() for embed in message.embeds], indent=4)
+    attachments = json.dumps([attachment.url for attachment in message.attachments])
+    guild_id = 0 if not message.guild else message.guild.id
+
+    await bot.execute(query, (
+        message.id,
+        message.author.id,
+        message.channel.id,
+        guild_id,
+        message.content,
+        int(datetime.timestamp(message.created_at)),
+        message.author.bot,
+        attachments,
+        embeds,
+        False,
+        False
+    ))
+
+
 class Listeners(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.query = 'INSERT INTO messages (message_id, author_id, channel_id, guild_id, content, timestamp, ' \
-                     'is_bot, attachments, embeds) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)'
+        self.delete_query = 'UPDATE messages SET is_deleted = $1 WHERE message_id = $2'
+        self.edit_query = 'UPDATE messages SET is_edited = $1 WHERE message_id = $1'
+        self.member_query = 'INSERT INTO member_logs (member_id, roles, nickname) VALUES ($1, $2, $3)'
+        self.user_query = 'INSERT INTO user_logs (user_id, username) VALUES ($1, $2)'
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -39,25 +65,37 @@ class Listeners(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-
-        embeds = json.dumps([embed.to_dict() for embed in message.embeds], indent=4)
-        attachments = json.dumps([attachment.url for attachment in message.attachments])
-        guild_id = 0 if not message.guild else message.guild.id
-
-        await self.bot.execute(self.query, (
-            message.id,
-            message.author.id,
-            message.channel.id,
-            guild_id,
-            message.content,
-            int(datetime.timestamp(message.created_at)),
-            message.author.bot,
-            attachments,
-            embeds
-        ))
-
+        await insert_message(self.bot, message)
         if not message.guild or message.author.bot:
             return
+
+    @commands.Cog.listener()
+    async def on_raw_message_edit(self, payload):
+        message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
+        await self.bot.execute(self.edit_query, (True, payload.message_id))
+        await insert_message(self.bot, message)
+
+    @commands.Cog.listener()
+    async def on_raw_message_delete(self, payload):
+        await self.bot.execute(self.delete_query, (True, payload.message_id))
+
+    @commands.Cog.listener()
+    async def on_raw_bulk_message_delete(self, payload):
+        q = self.delete_query
+        for message_id in payload.message_ids:
+            await self.bot.execute(q, (True, message_id))
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before, after):
+        if before.roles != after.roles or before.display_name != after.display_name:
+            roles = json.dumps([role.id for role in after.roles], indent=4)
+            nickname = after.display_name
+            await self.bot.execute(self.member_query, (after.id, roles, nickname))
+
+    @commands.Cog.listener()
+    async def on_user_update(self, before, after):
+        if before.name != after.name:
+            await self.bot.execute(self.user_query, (after.id, after.name))
 
 
 def setup(bot):
