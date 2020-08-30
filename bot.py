@@ -34,7 +34,7 @@ async def feedback(ctx, *, user_feedback):
     embed.set_author(name=str(ctx.author), icon_url=str(ctx.author.avatar_url_as(format='png')))
     embed.set_footer(text=f'Guild ID: {ctx.guild.id}')
     await bot.get_user(553058885418876928).send(embed=embed)
-    await ctx.send(':thumbs_up: Your feedback has been sent!')
+    await ctx.send(':thumbsup: Your feedback has been sent!')
 
 
 @feedback.error
@@ -44,6 +44,12 @@ async def feedback_error(ctx, error):
                        f'`{error.retry_after:.2f}` seconds.')
     else:
         print(error)
+
+
+@bot.command()
+async def invite(ctx):
+    await ctx.send(f'**You can invite me here:**\n'
+                   f'<https://discord.com/oauth2/authorize?client_id=742921922370600991&permissions=19521&scope=bot>')
 
 
 @bot.command()
@@ -71,24 +77,16 @@ async def _help(ctx):
 
     cmds = {
         f"{p}**prefix**": 'Shows/changes the current server prefix',
+        f"{p}**invite**": 'Sends my invite link!',
         f"{p}**madlibs**": 'Lets you host a MadLibs game',
         f"{p}**plays**": "Gets a play from the history of the server's laughable moments",
+        f"{p}**custom**": 'Manages custom story templates for the current server',
         f"{p}**feedback**": "Gives feedback about anything related to the bot, including source code",
         f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL.",
-        f"{p}**custom**": 'Manages custom story templates for the current server'
-    }
-    sub_cmds = {
-        f'{p}*custom* **add**': 'Adds a custom story template',
-        f'{p}*custom* **edit**': 'Edits an existing custom story template',
-        f'{p}*custom* **remove**': 'Removes a custom story template',
-        f'{p}*custom* **info**': 'Gets info on a custom story template',
-        f'{p}*custom* **all**': 'Lists all custom story templates in the server'
     }
 
     for cmd in cmds.keys():
         embed.add_field(name=cmd, value=cmds[cmd], inline=False)
-    for cmd in sub_cmds.keys():
-        embed.add_field(name=cmd, value=sub_cmds[cmd], inline=True)
     await ctx.send(embed=embed)
 
 

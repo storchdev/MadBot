@@ -9,7 +9,7 @@ query = 'INSERT INTO messages (message_id, author_id, channel_id, guild_id, cont
 
 async def insert_message(bot, message):
     embeds = json.dumps([embed.to_dict() for embed in message.embeds], indent=4)
-    attachments = json.dumps([attachment.url for attachment in message.attachments])
+    attachments = json.dumps([attachment.url for attachment in message.attachments], indent=4)
     guild_id = 0 if not message.guild else message.guild.id
 
     await bot.execute(query, (

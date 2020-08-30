@@ -7,7 +7,21 @@ import json
 from datetime import datetime
 
 finder = re.compile('{(.+?)}')
+splitter = re.compile('[.!?] *')
+is_vowel = re.compile('^([aeiou])')
 cross_mark = '\U0000274c'
+
+
+def capitalize(text: str):
+    split = splitter.split(text)
+    final_story = []
+    for sentence in split:
+        if len(sentence) < 2:
+            final_story.append(sentence)
+        else:
+            final_story.append(sentence[0].upper() + sentence[1:])
+    return ''.join(final_story)
+
 
 with open('./defaults.json') as f:
     lengths = {}
@@ -267,7 +281,7 @@ class MadLibs(commands.Cog):
                 self.in_game.remove(ctx.channel.id)
                 return await ctx.send(f'Nobody is left in the game. It has been canceled.')
 
-            opt = 'n' if re.match('^([aeiou])', blank) else ''
+            opt = 'n' if is_vowel.match(blank) else ''
             await ctx.send(f'{user.mention}, type out a{opt} **{blank}**. ({progress}/{total})')
 
             def check(m):
@@ -305,9 +319,7 @@ class MadLibs(commands.Cog):
 
         embedded_story = ''
         pages = []
-
-        split = re.split('([.!?] *)', final_story)
-        final_story = ''.join([i.capitalize() for i in split])
+        final_story = capitalize(final_story)
 
         for word in final_story.split():
             word += ' '
