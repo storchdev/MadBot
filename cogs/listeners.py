@@ -32,7 +32,7 @@ class Listeners(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.delete_query = 'UPDATE messages SET is_deleted = $1 WHERE message_id = $2'
-        self.edit_query = 'UPDATE messages SET is_edited = $1 WHERE message_id = $1'
+        self.edit_query = 'UPDATE messages SET is_edited = $1 WHERE message_id = $2'
         self.member_query = 'INSERT INTO member_logs (member_id, roles, nickname) VALUES ($1, $2, $3)'
         self.user_query = 'INSERT INTO user_logs (user_id, username) VALUES ($1, $2)'
 
