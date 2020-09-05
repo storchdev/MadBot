@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 
 finder = re.compile('{(.+?)}')
-splitter = re.compile('[.!?] *')
+splitter = re.compile('([.!?] *)')
 is_vowel = re.compile('^([aeiou])')
 cross_mark = '\U0000274c'
 
