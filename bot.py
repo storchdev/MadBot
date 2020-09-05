@@ -67,6 +67,9 @@ async def pastebin(ctx, *, text):
 
 @bot.command(name='help', aliases=['cmds', 'commands'])
 async def _help(ctx):
+    if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
+        return await ctx.send('I need the `Embed Links` permission to display help.')
+
     embed = discord.Embed(color=discord.Colour.blue())
     embed.title = f'Commands'
     embed.set_thumbnail(url='https://media.discordapp.net/attachments/742973400636588056/745710912257916950/'
