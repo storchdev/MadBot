@@ -8,7 +8,7 @@ This invite link comes equipped with all the permissions it needs.
 ## Setup
 I don't know why you would want to run an instance of this bot, but all you have to do is:
 - Create a file called `config.py` in the root directory
-- Inside it, put `TOKEN = 'your bot token'`
+- Inside it, put `TOKEN = 'your bot token'` as well as a dictionary containing the `host`, `port`, `user`, `database`, and `password` of your postgres database.
 - Open up command prompt, go in this directory, then type `python bot.py`
 ## Commands
 There are only a few commands on MadLibs. The prefix defaults to `ml!`, but you may customize it.
