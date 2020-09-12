@@ -20,13 +20,13 @@ class Config(commands.Cog):
         if len(prefix) > 16:
             return await ctx.send(f'The prefix must be 16 characters or under.')
 
-        if ctx.guild.id not in list(self.bot.prefixes.keys()):
+        if ctx.guild.id not in self.bot.prefixes:
             query = 'INSERT INTO prefixes (prefix, guild_id) VALUES ($1, $2)'
         else:
             query = 'UPDATE prefixes SET prefix = $1 WHERE guild_id = $2'
 
         self.bot.prefixes[ctx.guild.id] = prefix
-        await self.bot.execute(query, (prefix, ctx.guild.id))
+        await self.bot.db.execute(query, prefix, ctx.guild.id)
 
         await ctx.send(f'Prefix changed to `{prefix}`. Do `{prefix}prefix` again to change it.')
         

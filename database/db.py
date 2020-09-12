@@ -6,11 +6,11 @@ import asyncpg
 loop = asyncio.get_event_loop()
 
 
-async def connect():
+async def _connect():
     con = await asyncpg.create_pool(**POSTGRES_CONFIG)
     return con
 
-db = loop.run_until_complete(connect())
+db = loop.run_until_complete(_connect())
 
 
 async def create_tables():
@@ -66,50 +66,8 @@ async def create_tables():
         )'''
     ]
 
-    async with db.acquire() as cur:
-        for query in queries:
-            await cur.execute(query)
-
-
-async def get_prefixes():
-    query = 'SELECT guild_id, prefix FROM prefixes'
-    p = {}
-
-    async with db.acquire() as cur:
-        for prefix in await cur.fetch(query):
-            p[prefix[0]] = prefix[1]
-
-    return p
-
-
-async def fetchall(query, params: tuple):
-    if not params:
-        async with db.acquire() as con:
-            rows = await con.fetch(query)
-    else:
-        async with db.acquire() as con:
-            rows = await con.fetch(query, *params)
-    return rows
-
-
-async def fetchone(query, params: tuple):
-    if not params:
-        async with db.acquire() as con:
-            row = await con.fetchrow(query)
-    else:
-        async with db.acquire() as con:
-            row = await con.fetchrow(query, *params)
-    return row
-
-
-async def execute(query, params: tuple):
-    if not params:
-        async with db.acquire() as con:
-            await con.execute(query)
-    else:
-        async with db.acquire() as con:
-            await con.execute(query, *params)
+    [await db.execute(query) for query in queries]
+    return db
 
 
 loop.run_until_complete(create_tables())
-prefixes = loop.run_until_complete(get_prefixes())

@@ -88,10 +88,14 @@ def create_embed(page, is_custom, rows=None):
 
 class Templates(menus.Menu):
 
-    def __init__(self, *, timeout=180.0, delete_message_after=False,
-                 clear_reactions_after=True, check_embeds=False, message=None):
-        super().__init__(timeout=180.0, delete_message_after=False, clear_reactions_after=True, check_embeds=False,
-                         message=None)
+    def __init__(self):
+        super().__init__(
+            timeout=30.0,
+            delete_message_after=False,
+            clear_reactions_after=True,
+            check_embeds=False,
+            message=None
+        )
         self.page = 1
         self.max_length = 1
         self.on_custom = False
@@ -99,7 +103,7 @@ class Templates(menus.Menu):
 
     async def send_initial_message(self, ctx, channel):
         embed, self.max_length = create_embed(1, False)
-        self.rows = await self.bot.fetchall('SELECT name, template FROM madlibs WHERE guild_id = $1', (ctx.guild.id,))
+        self.rows = await self.bot.db.fetch('SELECT name, template FROM madlibs WHERE guild_id = $1', ctx.guild.id)
         return await channel.send(embed=embed)
 
     @menus.button('\N{BLACK LEFT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}')
@@ -180,6 +184,21 @@ class MadLibs(commands.Cog):
         self.in_game = []
         self.finder = finder
         self.cross_mark = '\U0000274c'
+        self.custom_help = '''To **add** a custom template, do this: ```
+{0}custom add "<name>" <template>```
+Surround the name of blanks with curly brackets {{}}
+Example: `{0}custom add "example" The {{noun}} is {{adjective}}`.
+
+To **import** a custom template from another server, do this:  ```
+{0}custom import <server ID> <name>```
+To **edit** a custom template, do this: ```
+{0}custom edit <name> <new version>```
+To **delete** a custom template, do this: ```
+{0}custom delete <name>```
+To **get info** on a custom template, do this: ```
+{0}custom info <name>```
+To **list all** custom templates, do this: ```
+{0}custom all```'''
 
     @commands.command()
     async def madlibs(self, ctx):
@@ -192,7 +211,7 @@ class MadLibs(commands.Cog):
         self.in_game.append(ctx.channel.id)
 
         query = 'SELECT name, template FROM madlibs WHERE guild_id = $1'
-        rows = await self.bot.fetchall(query, (ctx.guild.id,))
+        rows = await self.bot.db.fetch(query, ctx.guild.id)
 
         templates = t
         names = n
@@ -311,11 +330,18 @@ class MadLibs(commands.Cog):
         task.cancel()
 
         query = 'UPDATE madlibs SET plays = plays + 1 WHERE guild_id = $1 AND name = $2'
-        await self.bot.execute(query, (ctx.guild.id, template_name))
+        await self.bot.db.execute(query, ctx.guild.id, template_name)
         query = 'INSERT INTO plays (channel_id, participants, final_story, played_at, name, guild_id) ' \
                 'VALUES ($1, $2, $3, $4, $5, $6)'
-        await self.bot.execute(query, (ctx.channel.id, json.dumps([p.id for p in participants], indent=4),
-                                       final_story, int(time.time()), template_name, ctx.guild.id))
+        await self.bot.db.execute(
+            query,
+            ctx.channel.id,
+            json.dumps([p.id for p in participants], indent=4),
+            final_story,
+            int(time.time()),
+            template_name,
+            ctx.guild.id
+        )
 
         embedded_story = ''
         pages = []
@@ -344,19 +370,7 @@ class MadLibs(commands.Cog):
 
     @commands.group(invoke_without_command=True)
     async def custom(self, ctx):
-        await ctx.send(f'''To **add** a custom template, do this: ```
-{ctx.prefix}custom add "<name>" <template>```
-Surround the name of blanks with curly brackets {{}}
-Example: `{ctx.prefix}custom add "example" The {{noun}} is {{adjective}}`.
-
-To **edit** a custom template, do this: ```
-{ctx.prefix}custom edit <name> <new version>```
-To **delete** a custom template, do this: ```
-{ctx.prefix}custom delete <name>```
-To **get info** on a custom template, do this: ```
-{ctx.prefix}custom info <name>```
-To **list all** custom templates, do this: ```
-{ctx.prefix}custom all```''')
+        await ctx.send(self.custom_help.format(ctx.prefix))
 
     @custom.command(name='add', aliases=['create'])
     async def _add(self, ctx, name, *, template):
@@ -371,7 +385,7 @@ To **list all** custom templates, do this: ```
                                   'placeholders marked with curly brackets, like `{noun}`.')
 
         query = 'SELECT id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        exists = await self.bot.fetchone(query, (name, ctx.guild.id))
+        exists = await self.bot.db.fetchrow(query, name, ctx.guild.id)
 
         if exists:
             return await ctx.send(f'{self.cross_mark} '
@@ -379,14 +393,14 @@ To **list all** custom templates, do this: ```
 
         query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
                 'VALUES ($1, $2, $3, $4, $5, $6)'
-        await self.bot.execute(query, (name, template, ctx.guild.id, ctx.author.id, 0, int(time.time())))
+        await self.bot.db.execute(query, name, template, ctx.guild.id, ctx.author.id, 0, int(time.time()))
         await ctx.send(f'Successfully added custom story template with name `{name}`!')
 
     @custom.command(name='delete', aliases=['remove', 'nize'])
     async def _delete(self, ctx, *, name):
 
         query = 'SELECT creator_id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        creator_id = await self.bot.fetchone(query, (name, ctx.guild.id))
+        creator_id = await self.bot.db.fetchrow(query, name, ctx.guild.id)
 
         if creator_id:
             creator_id = creator_id[0]
@@ -395,7 +409,7 @@ To **list all** custom templates, do this: ```
                 return await ctx.send('You are not authorized to delete this tag.')
 
             query = 'DELETE FROM madlibs WHERE name = $1 AND guild_id = $2'
-            await self.bot.execute(query, (name, ctx.guild.id))
+            await self.bot.db.execute(query, name, ctx.guild.id)
 
             await ctx.send(f'Successfully deleted custom story template {name}.')
         else:
@@ -405,7 +419,7 @@ To **list all** custom templates, do this: ```
     async def _edit(self, ctx, name, *, edited):
 
         query = 'SELECT creator_id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        exists = await self.bot.fetchone(query, (name, ctx.guild.id))
+        exists = await self.bot.db.fetchrow(query, name, ctx.guild.id)
 
         if not exists:
             return await ctx.send(f'{self.cross_mark} No custom template with name `{name}` found.')
@@ -416,13 +430,13 @@ To **list all** custom templates, do this: ```
             return await ctx.send(f'{self.cross_mark} You are not authorized to edit this tag.')
 
         query = 'UPDATE madlibs SET template = $1 WHERE name = $2 AND guild_id = $3'
-        await self.bot.execute(query, (edited, name, ctx.guild.id))
+        await self.bot.db.execute(query, edited, name, ctx.guild.id)
         await ctx.send(f'Successfully edited custom story template `{name}`.')
 
     @custom.command(name='all')
     async def _all(self, ctx):
         query = 'SELECT name FROM madlibs WHERE guild_id = $1'
-        rows = await self.bot.fetchall(query, (ctx.guild.id,))
+        rows = await self.bot.db.fetch(query, ctx.guild.id)
 
         if not rows:
             return await ctx.send(f'{self.cross_mark} No custom templates found in this guild.')
@@ -436,7 +450,7 @@ To **list all** custom templates, do this: ```
             return await ctx.send(f'{self.cross_mark} I need the `Embed Links` permission to send info.')
 
         query = 'SELECT template, creator_id, plays, created_at FROM madlibs WHERE guild_id = $1 AND name = $2'
-        row = await self.bot.fetchone(query, (ctx.guild.id, name))
+        row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
 
         if not row:
             return await ctx.send(f'{self.cross_mark} No template called `{name}` was found.')
@@ -447,7 +461,7 @@ To **list all** custom templates, do this: ```
 
         user = ctx.guild.get_member(row[1])
         if not user:
-            embed.add_field(name='Creator', value=f'<@{row[2]}>\n(left guild)')
+            embed.add_field(name='Creator', value=f'<@{row[2]}>\n(not in server)')
         else:
             embed.add_field(name='Creator', value=f'{user.mention}')
             embed.set_author(name=str(user), icon_url=str(user.avatar_url_as(format='png')))
@@ -464,17 +478,35 @@ To **list all** custom templates, do this: ```
 
         await ctx.send(embed=embed)
 
+    @custom.command(name='import')
+    async def _import(self, ctx, guild_id: int, *, name):
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            return await ctx.send(f'Could not find server with ID `{guild_id}`.')
+        query = 'SELECT template FROM madlibs WHERE guild_id = $1 AND name = $2'
+        row = await self.bot.db.fetchrow(query, guild_id, name)
+        if not row:
+            return await ctx.send(f"The template with name `{name}` doesn't exist in that server.")
+        template = row[0]
+        row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
+        if row:
+            return await ctx.send(f'A template with the name `{name}` already exists.')
+        query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
+                'VALUES ($1, $2, $3, $4, $5, $6)'
+        await self.bot.db.execute(query, name, template, ctx.guild.id, ctx.author.id, 0, int(time.time()))
+        await ctx.send(f'Successfully imported **{name}** from `{guild.name}`!')
+
     @commands.command()
     async def plays(self, ctx, index: int, *, storyname=None):
 
         if storyname:
             query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
                     'WHERE guild_id = $1 AND name = $2'
-            rows = await self.bot.fetchall(query, (ctx.guild.id, storyname))
+            rows = await self.bot.db.fetch(query, ctx.guild.id, storyname)
         else:
             query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
                     'WHERE guild_id = $1'
-            rows = await self.bot.fetchall(query, (ctx.guild.id,))
+            rows = await self.bot.db.fetch(query, ctx.guild.id)
 
         if not rows:
             return await ctx.send('No plays found.')
