@@ -32,6 +32,10 @@ bot.db = db
 bot.prefixes = prefixes
 [bot.load_extension(cog) for cog in cogs]
 
+ICON = 'https://media.discordapp.net/attachments/742973400636588056/745710912257916950/159607234227809532.png'
+INVITE = 'https://discord.com/oauth2/authorize?client_id=742921922370600991&permissions=19521&scope=bot'
+GITHUB = 'https://github.com/Stormtorch002/MadLibs'
+
 
 @bot.command()
 @commands.cooldown(2, 60, commands.BucketType.user)
@@ -52,8 +56,6 @@ async def feedback_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f'You can only give feedback twice per hour. Please wait another '
                        f'`{error.retry_after:.2f}` seconds.')
-    else:
-        print(error)
 
 
 @bot.command()
@@ -82,10 +84,8 @@ async def _help(ctx):
 
     embed = discord.Embed(color=discord.Colour.blue())
     embed.title = f'Commands'
-    embed.set_thumbnail(url='https://media.discordapp.net/attachments/742973400636588056/745710912257916950/'
-                            '159607234227809532.png')
-    embed.description = f'[Source Code](https://github.com/Stormtorch002/MadLibs)\n[Invite](https://discord.com/' \
-                        f'oauth2/authorize?client_id=742921922370600991&permissions=19521&scope=bot)'
+    embed.set_thumbnail(url=)
+    embed.description = f'[Source Code]({GITHUB})\n[Invite Me!]{INVITE}'
     p = ctx.prefix
 
     cmds = {
@@ -98,8 +98,7 @@ async def _help(ctx):
         f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL.",
     }
 
-    for cmd in cmds.keys():
-        embed.add_field(name=cmd, value=cmds[cmd], inline=False)
+    [embed.add_field(name=cmd, value=cmds[cmd], inline=False) for cmd in cmds]
     await ctx.send(embed=embed)
 
 
