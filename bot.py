@@ -85,7 +85,7 @@ async def _help(ctx):
     embed = discord.Embed(color=discord.Colour.blue())
     embed.title = f'Commands'
     embed.set_thumbnail(url=ICON)
-    embed.description = f'[Source Code]({GITHUB})\n[Invite Me!]{INVITE}'
+    embed.description = f'[`Source Code`]({GITHUB})\n[**Invite Me!**]({INVITE})'
     p = ctx.prefix
 
     cmds = {
