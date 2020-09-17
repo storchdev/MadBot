@@ -61,15 +61,6 @@ class Listeners(commands.Cog):
             await ctx.send('You must provide both the **name** of the template to edit and the **new edited version**.')
         elif ctx.command.name == 'info':
             await ctx.send(f'You must provide the **name** of the template to get info on.')
-        elif ctx.command.name == 'import':
-            if isinstance(error, commands.BadArgument):
-                await ctx.send("You must provide a valid server ID.")
-            elif isinstance(error, commands.MissingRequiredArgument):
-                await ctx.send("You must provide a **server ID** and the **name of the template** in that server.")
-            else:
-                raise error
-        else:
-            raise error
 
     @commands.Cog.listener()
     async def on_message(self, message):

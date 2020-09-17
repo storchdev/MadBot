@@ -70,7 +70,7 @@ def create_embed(page, is_custom, rows=None):
 
         if rows:
             for row in rows:
-                blanks = len(finder.findall(row[1]))
+                blanks = len(finder.findall(row['template']))
                 line = f'`{i}.` **{row[0]}** ({blanks} blanks)'
                 paginator.add_line(line)
                 i += 1
@@ -103,7 +103,9 @@ class Templates(menus.Menu):
 
     async def send_initial_message(self, ctx, channel):
         embed, self.max_length = create_embed(1, False)
-        self.rows = await self.bot.db.fetch('SELECT name, template FROM madlibs WHERE guild_id = $1', ctx.guild.id)
+        self.rows = await self.bot.db.fetch(
+            'SELECT name, template FROM madlibs WHERE guild_id = $1', ctx.guild.id
+        )
         return await channel.send(embed=embed)
 
     @menus.button('\N{BLACK LEFT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}')
@@ -218,7 +220,7 @@ To **list all** custom templates, do this: ```
         x = len(defaults) + 1
 
         for row in rows:
-            templates[x] = row[1]
+            templates[x] = row['template']
             names[x] = row[0]
             x += 1
         participants = [ctx.author]
@@ -232,10 +234,11 @@ To **list all** custom templates, do this: ```
         end = time.time() + timeout_in
 
         def check(m):
-            return \
-                m.channel.id == ctx.channel.id and (m.content.lower() == 'join' and m.author.id != ctx.author.id or
-                                                    m.content.lower() in ['start',
-                                                                          'cancel'] and m.author.id == ctx.author.id)
+            return m.channel.id == ctx.channel.id and (
+                    m.content.lower() == 'join' and m.author.id != ctx.author.id
+                    or m.content.lower() in ('start', 'cancel')
+                    and m.author.id == ctx.author.id
+            )
 
         while True:
             try:
@@ -403,7 +406,7 @@ To **list all** custom templates, do this: ```
         creator_id = await self.bot.db.fetchrow(query, name, ctx.guild.id)
 
         if creator_id:
-            creator_id = creator_id[0]
+            creator_id = creator_id['creator_id']
 
             if ctx.author.id != creator_id and not ctx.author.guild_permissions.manage_guild:
                 return await ctx.send('You are not authorized to delete this tag.')
@@ -419,12 +422,12 @@ To **list all** custom templates, do this: ```
     async def _edit(self, ctx, name, *, edited):
 
         query = 'SELECT creator_id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        exists = await self.bot.db.fetchrow(query, name, ctx.guild.id)
+        creator_id = await self.bot.db.fetchrow(query, name, ctx.guild.id)
 
-        if not exists:
+        if not creator_id:
             return await ctx.send(f'{self.cross_mark} No custom template with name `{name}` found.')
 
-        creator_id = exists[0]
+        creator_id = creator_id['creator_id']
 
         if ctx.author.id != creator_id and not ctx.author.guild_permissions.manage_guild:
             return await ctx.send(f'{self.cross_mark} You are not authorized to edit this tag.')
@@ -441,7 +444,7 @@ To **list all** custom templates, do this: ```
         if not rows:
             return await ctx.send(f'{self.cross_mark} No custom templates found in this guild.')
 
-        await ctx.send("**All Custom Templates:**\n\n" + '\n'.join(['`' + row[0] + '`' for row in rows]))
+        await ctx.send("**All Custom Templates:**\n\n" + '\n'.join(['`' + row['name'] + '`' for row in rows]))
 
     @custom.command(name='info')
     async def _info(self, ctx, *, name):
@@ -457,20 +460,20 @@ To **list all** custom templates, do this: ```
 
         embed = discord.Embed(color=discord.Colour.blue())
         embed.title = name
-        embed.add_field(name='Number of Plays', value=f'**{row[2]}**')
+        embed.add_field(name='Number of Plays', value=f'**{row["plays"]}**')
 
-        user = ctx.guild.get_member(row[1])
+        user = ctx.guild.get_member(row['creator_id'])
         if not user:
-            embed.add_field(name='Creator', value=f'<@{row[2]}>\n(not in server)')
+            embed.add_field(name='Creator', value=f'<@{row["plays"]}>\n(not in server)')
         else:
             embed.add_field(name='Creator', value=f'{user.mention}')
             embed.set_author(name=str(user), icon_url=str(user.avatar_url_as(format='png')))
 
-        blanks = finder.findall(row[0])
+        blanks = finder.findall(row['template'])
         embed.add_field(name='Number of Blanks', value=f'**{len(blanks)}**')
 
-        if row[3]:
-            created_at = datetime.fromtimestamp(row[3]).strftime('%m/%d/%Y at %I:%M:%S %p EST')
+        if row['created_at']:
+            created_at = datetime.fromtimestamp(row['created_at']).strftime('%m/%d/%Y at %I:%M:%S %p EST')
             embed.add_field(name='Created At', value=created_at)
 
         if len(blanks) <= 1024:
@@ -487,7 +490,7 @@ To **list all** custom templates, do this: ```
         row = await self.bot.db.fetchrow(query, guild_id, name)
         if not row:
             return await ctx.send(f"The template with name `{name}` doesn't exist in that server.")
-        template = row[0]
+        template = row['template']
         row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
         if row:
             return await ctx.send(f'A template with the name `{name}` already exists.')
@@ -518,16 +521,16 @@ To **list all** custom templates, do this: ```
 
         embed = discord.Embed(color=discord.Colour.blue())
 
-        if len(story[2]) > 2048:
-            desc = story[2][:2047]
+        if len(story['final_story']) > 2048:
+            desc = story['final_story'][:2044] + '...'
         else:
-            desc = story[2]
+            desc = story['final_story']
 
         embed.description = desc
-        embed.title = story[4]
+        embed.title = story['name']
 
         participants = []
-        for user_id in json.loads(story[1]):
+        for user_id in json.loads(story['participants']):
             user = self.bot.get_user(user_id)
             if user:
                 participants.append(user.mention)
@@ -536,18 +539,26 @@ To **list all** custom templates, do this: ```
         mentions = ', '.join(participants)
         embed.add_field(name='Participants', value=mentions)
 
-        ch = self.bot.get_channel(story[0]).mention
+        ch = self.bot.get_channel(story['channel_id']).mention
         if ch:
             embed.add_field(name='Channel', value=ch)
 
-        played_at = datetime.fromtimestamp(story[3]).strftime('%m/%d/%Y at %I:%M:%S %p EST')
+        played_at = datetime.fromtimestamp(story['played_at']).strftime('%m/%d/%Y at %I:%M:%S %p EST')
         embed.add_field(name='Played At', value=played_at)
         await ctx.send(embed=embed)
 
     @plays.error
     async def plays_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, commands.BadArgument):
+        if isinstance(error, commands.MissingRequiredArgument) or \
+                isinstance(error, commands.BadArgument):
             await ctx.send(f'The correct usage is: `{ctx.prefix}plays <index> <template name>`.')
+
+    @_import.error
+    async def import_error(self, ctx, error):
+        if isinstance(error, commands.BadArgument):
+            await ctx.send("You must provide a valid server ID.")
+        elif isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("You must provide a **server ID** and the **name of the template** in that server.")
 
 
 def setup(bot):

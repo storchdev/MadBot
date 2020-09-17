@@ -9,7 +9,7 @@ import asyncio
 async def get_prefixes():
     d = await db_file.create_tables()
     query = 'SELECT guild_id, prefix FROM prefixes'
-    return {res[0]: res[1] for res in await d.fetch(query)}, d
+    return {res['guild_id']: res['prefix'] for res in await d.fetch(query)}, d
 
 
 prefixes, db = asyncio.get_event_loop().run_until_complete(get_prefixes())
@@ -17,14 +17,20 @@ prefixes, db = asyncio.get_event_loop().run_until_complete(get_prefixes())
 
 def get_prefix(client, message):
     prefix = prefixes.get(message.guild.id)
-    return prefix if prefix else 'mm'
+    return prefix if prefix else 'ml!'
 
 
+cogs = (
+    'cogs.listeners',
+    'cogs.madlibs',
+    'cogs.config',
+    'jishaku'
+)
 bot = commands.Bot(command_prefix=get_prefix)
 bot.remove_command('help')
 bot.db = db
 bot.prefixes = prefixes
-[bot.load_extension(cog) for cog in ('cogs.listeners', 'cogs.madlibs', 'cogs.config', 'jishaku')]
+[bot.load_extension(cog) for cog in cogs]
 
 
 @bot.command()

@@ -17,7 +17,7 @@ async def create_tables():
     queries = [
         '''CREATE TABLE IF NOT EXISTS prefixes (
             "id" SERIAL,
-            "guild_id" BIGINT,
+            "guild_id" BIGINT UNIQUE,
             "prefix" VARCHAR(16)
         )''',
         '''CREATE TABLE IF NOT EXISTS plays (
