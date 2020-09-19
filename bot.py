@@ -6,6 +6,15 @@ from aiohttp import ClientSession
 import asyncio
 
 
+def case(prefix):
+    return [
+        prefix,
+        prefix.upper(),
+        prefix.lower(),
+        prefix.capitalize()
+    ]
+
+
 async def get_prefixes():
     d = await db_file.create_tables()
     query = 'SELECT guild_id, prefix FROM prefixes'
@@ -17,7 +26,10 @@ prefixes, db = asyncio.get_event_loop().run_until_complete(get_prefixes())
 
 def get_prefix(client, message):
     prefix = prefixes.get(message.guild.id)
-    return prefix if prefix else 'ml!'
+    if prefix:
+        return commands.when_mentioned_or(case(prefix))(client, message)
+    else:
+        return commands.when_mentioned_or(['ml!, ML!, Ml!'])(client, message)
 
 
 cogs = (

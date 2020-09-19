@@ -26,7 +26,7 @@ class Config(commands.Cog):
         await self.bot.db.execute(query, ctx.guild.id, prefix)
 
         await ctx.send(f'Prefix changed to `{prefix}`. Do `{prefix}{ctx.command.name}` again to change it.')
-        
+
 
 def setup(bot):
     bot.add_cog(Config(bot))

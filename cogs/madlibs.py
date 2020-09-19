@@ -1,10 +1,11 @@
-from discord.ext import commands, menus
+from discord.ext import commands
 import discord
 import time
 import asyncio
 import re
 import json
 from datetime import datetime
+from cogs.menus import menu
 
 finder = re.compile('{(.+?)}')
 splitter = re.compile('([.!?] *)')
@@ -26,157 +27,16 @@ def capitalize(text: str):
 with open('./defaults.json') as f:
     lengths = {}
     defaults = json.load(f)
-
-    for default in defaults.keys():
-        length = len(finder.findall(defaults[default]))
-        lengths[default] = length
-
-    c = 1
+    count = 1
     t = {}
     n = {}
-    for k in defaults.keys():
-        t[c] = defaults[k]
-        n[c] = k
-        c += 1
 
-
-def create_embed(page, is_custom, rows=None):
-    paginator = commands.Paginator(max_size=500, prefix='', suffix='')
-    i = 1
-
-    embed = discord.Embed(color=discord.Colour.blue())
-    embed.set_footer(text=f'\U000026ab - Custom Templates\n\U000026aa - Default Templates')
-    embed.add_field(name='THE HOST: TYPE OUT THE NUMBER OF THE TEMPLATE TO CHOOSE IT', value='\u200b')
-
-    if not is_custom:
-
-        for template in defaults.keys():
-            line = f'`{i}.` **{template}** ({lengths[template]} blanks)'
-            paginator.add_line(line)
-            i += 1
-
-        pages = paginator.pages
-        embed.set_author(name=f'Page {page}/{len(pages)}')
-        embed.title = f'{len(defaults)} Default Templates'
-        embed.description = pages[page - 1]
-
-    else:
-        i = len(defaults) + 1
-
-        embed = discord.Embed(color=discord.Colour.blue())
-        embed.title = f'{len(rows)} Custom Templates'
-        embed.add_field(name='THE HOST: TYPE OUT THE NUMBER OF THE TEMPLATE TO CHOOSE IT', value='\u200b')
-        embed.set_footer(text=f'\U000026ab - Custom Templates\n\U000026aa - Default Templates')
-
-        if rows:
-            for row in rows:
-                blanks = len(finder.findall(row['template']))
-                line = f'`{i}.` **{row[0]}** ({blanks} blanks)'
-                paginator.add_line(line)
-                i += 1
-
-            pages = paginator.pages
-            embed.description = pages[page - 1]
-            embed.set_author(name=f'Page {page}/{len(pages)}')
-        else:
-            embed.description = 'No custom templates found.'
-            embed.set_author(name='Page 0')
-            return embed, 0
-
-    return embed, len(pages)
-
-
-class Templates(menus.Menu):
-
-    def __init__(self):
-        super().__init__(
-            timeout=30.0,
-            delete_message_after=False,
-            clear_reactions_after=True,
-            check_embeds=False,
-            message=None
-        )
-        self.page = 1
-        self.max_length = 1
-        self.on_custom = False
-        self.rows = []
-
-    async def send_initial_message(self, ctx, channel):
-        embed, self.max_length = create_embed(1, False)
-        self.rows = await self.bot.db.fetch(
-            'SELECT name, template FROM madlibs WHERE guild_id = $1', ctx.guild.id
-        )
-        return await channel.send(embed=embed)
-
-    @menus.button('\N{BLACK LEFT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}')
-    async def on_first(self, payload):
-
-        if self.on_custom:
-            embed = create_embed(1, True, self.rows)[0]
-        else:
-            embed = create_embed(1, False)[0]
-
-        self.page = 1
-        await self.message.edit(embed=embed)
-
-    @menus.button('\N{BLACK LEFT-POINTING TRIANGLE}')
-    async def on_left(self, payload):
-
-        if self.page > 1:
-            self.page -= 1
-
-            if self.on_custom:
-                embed = create_embed(self.page, True, self.rows)[0]
-            else:
-                embed = create_embed(self.page, False)[0]
-
-            await self.message.edit(embed=embed)
-
-    @menus.button('\N{BLACK RIGHT-POINTING TRIANGLE}')
-    async def on_right(self, payload):
-
-        if self.page < self.max_length:
-            self.page += 1
-
-            if self.on_custom:
-                embed = create_embed(self.page, True, self.rows)[0]
-            else:
-                embed = create_embed(self.page, False)[0]
-
-            await self.message.edit(embed=embed)
-
-    @menus.button('\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}')
-    async def on_last(self, payload):
-
-        if self.page != self.max_length:
-            self.page = self.max_length
-
-            if self.on_custom:
-                embed = create_embed(self.page, True, self.rows)[0]
-            else:
-                embed = create_embed(self.page, False)[0]
-
-            await self.message.edit(embed=embed)
-
-    @menus.button('\N{MEDIUM BLACK CIRCLE}')
-    async def on_jump_to_custom(self, payload):
-
-        if not self.on_custom:
-            self.on_custom = True
-            self.page = 1
-
-            embed = create_embed(self.page, True, self.rows)[0]
-            await self.message.edit(embed=embed)
-
-    @menus.button('\N{MEDIUM WHITE CIRCLE}')
-    async def on_jump_to_default(self, payload):
-
-        if self.on_custom:
-            self.on_custom = False
-            self.page = 1
-
-            embed = create_embed(self.page, False)[0]
-            await self.message.edit(embed=embed)
+    for default in defaults:
+        length = len(finder.findall(defaults[default]))
+        lengths[default] = length
+        t[count] = defaults[default]
+        n[count] = default
+        count += 1
 
 
 class MadLibs(commands.Cog):
@@ -224,10 +84,13 @@ To **list all** custom templates, do this: ```
             names[x] = row[0]
             x += 1
         participants = [ctx.author]
-        embed = discord.Embed(color=discord.Colour.green())
-        embed.title = 'A MadLibs game is starting in this channel!'
-        embed.description = f'Send `join` in chat to join!'
-        embed.set_footer(text='If you are the host, please send [start] to start the game, or [cancel] to stop it.')
+        embed = discord.Embed(
+            title='A MadLibs game is starting in this channel!',
+            description=f'Send `join` in chat to join!',
+            color=discord.Colour.green())
+        embed.set_footer(
+            text='If you are the host, please send [start] to start the game, or [cancel] to stop it.'
+        )
         await ctx.send(embed=embed)
 
         timeout_in = 30
@@ -254,15 +117,17 @@ To **list all** custom templates, do this: ```
                     await ctx.send(f'{message.author.mention} has joined the game!')
             except asyncio.TimeoutError:
                 break
-        await Templates().start(ctx)
+
+        await menu(ctx)
 
         def check(m):
+            if m.author.id != ctx.author.id or m.channel.id != ctx.channel.id:
+                return False
             if m.content.lower() == 'cancel':
                 return True
-            if m.channel.id == ctx.channel.id and m.author.id == ctx.author.id:
-                if m.content.isdigit():
-                    if int(m.content) < x:
-                        return True
+            if m.content.isdigit():
+                if int(m.content) < x:
+                    return True
             return False
 
         try:
@@ -304,19 +169,27 @@ To **list all** custom templates, do this: ```
                 return await ctx.send(f'Nobody is left in the game. It has been canceled.')
 
             opt = 'n' if is_vowel.match(blank) else ''
-            await ctx.send(f'{user.mention}, type out a{opt} **{blank}**. ({progress}/{total})')
+            await ctx.send(
+                f'{user.mention}, type out a{opt} **{blank}**. ({progress}/{total})\n'
+                f'You can type `{ctx.prefix}leave` to leave.'
+            )
 
             def check(m):
-                return m.channel.id == ctx.channel.id and m.author.id == user.id
+                return m.channel.id == ctx.channel.id and m.author.id == user.id \
+                or m.author.id == ctx.author.id and m.content.lower() == 'cancel'
 
             try:
                 message = await self.bot.wait_for('message', check=check, timeout=30)
                 participants.pop(0)
 
+                if message.author.id == ctx.author.id:
+                    self.in_game.remove(ctx.channel.id)
+                    return await ctx.send('The host has canceled the game.')
+
                 if message.content.lower() == f'{ctx.prefix.lower()}leave':
                     await ctx.send(f'{message.author.mention} has left the game.')
                 elif len(message.content) > 32:
-                    await ctx.send(f'Word must be 32 characters or under. Skipping turn.')
+                    await ctx.send(f'Your word must be 32 characters or under. Skipping your turn.')
                     participants.append(message.author)
                 else:
                     participants.append(message.author)
@@ -360,13 +233,13 @@ To **list all** custom templates, do this: ```
                 embedded_story += word
         pages.append(embedded_story)
 
-        count = await ctx.send('3...')
+        message = await ctx.send('Grand finale in **3...**')
         await asyncio.sleep(1)
-        await count.edit(content='2...')
+        await message.edit(content='Grand finale in **2...**')
         await asyncio.sleep(1)
-        await count.edit(content='1...')
+        await message.edit(content='Grand finale in **1...**')
         await asyncio.sleep(1)
-        await count.edit(content=f'**{template_name}**\nBy {", ".join([user.mention for user in participants])}')
+        await message.edit(content=f'**{template_name}**\nBy {", ".join([user.mention for user in participants])}')
         for page in pages:
             await ctx.send(page)
         self.in_game.remove(ctx.channel.id)
