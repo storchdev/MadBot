@@ -1,8 +1,7 @@
 import discord
 from discord.ext import commands
 import asyncio
-from cogs.madlibs import defaults, lengths, finder
-from enum import Enum
+from concurrent.futures import TimeoutError
 
 
 EMOJIS = (
@@ -14,14 +13,9 @@ EMOJIS = (
 )
 
 
-class Pagination(Enum):
-    is_custom = False
-    page = 1
-
-
 async def create_embed(ctx, pagination):
-    page = pagination.page
-    is_custom = pagination.is_custom
+    page = pagination['page']
+    is_custom = pagination['on_custom']
     paginator = commands.Paginator(max_size=500, prefix='', suffix='')
     i = 1
 
@@ -33,26 +27,26 @@ async def create_embed(ctx, pagination):
 
     if not is_custom:
 
-        for template in defaults:
-            line = f'`{i}.` **{template}** ({lengths[template]} blanks)'
+        for template in ctx.bot.defaults:
+            line = f'`{i}.` **{template}** ({ctx.bot.lengths[template]} blanks)'
             paginator.add_line(line)
             i += 1
 
         pages = paginator.pages
         embed.set_author(name=f'Page {page}/{len(pages)}')
-        embed.title = f'{len(defaults)} Default Templates'
+        embed.title = f'{len(ctx.bot.defaults)} Default Templates'
         embed.description = pages[page - 1]
 
     else:
         rows = await ctx.bot.db.fetch(
             'SELECT name, template FROM madlibs WHERE guild_id = $1', ctx.guild.id
         )
-        i = len(defaults) + 1
+        i = len(ctx.bot.defaults) + 1
         embed.title = f'{len(rows)} Custom Templates'
 
         if rows:
             for row in rows:
-                blanks = len(finder.findall(row['template']))
+                blanks = len(ctx.bot.finder.findall(row['template']))
                 line = f'`{i}.` **{row[0]}** ({blanks} blanks)'
                 paginator.add_line(line)
                 i += 1
@@ -67,13 +61,8 @@ async def create_embed(ctx, pagination):
     return embed, len(pages)
 
 
-async def menu(ctx):
-    pagination = Pagination
-    pagination.is_custom = False
-    pagination.page = 1
-    
+async def menu(ctx, message, pagination):
     embed, max_length = await create_embed(ctx, pagination)
-    message = await ctx.send(embed=embed)
     [await message.add_reaction(emoji) for emoji in EMOJIS]
 
     def check(r, u):
@@ -81,39 +70,44 @@ async def menu(ctx):
 
     while True:
         try:
-            emoji = str((await ctx.bot.wait_for(
-                'reaction_add',
-                timeout=30,
-                check=check
-            ))[0].emoji)
-        except asyncio.TimeoutError:
+            done, pending = await asyncio.wait([
+                ctx.bot.wait_for('reaction_add', timeout=30, check=check),
+                ctx.bot.wait_for('reaction_remove', timeout=30, check=check)
+            ], return_when=asyncio.FIRST_COMPLETED)
+
+            emoji = done.pop().result()[0].emoji
+            for future in done:
+                future.exception()
+            for future in pending:
+                future.cancel()
+        except TimeoutError:
+            await message.delete()
             return
 
         if emoji == EMOJIS[0]:
-            if pagination.on_custom:
-                pagination.on_custom = False
+            if pagination['on_custom']:
+                pagination['on_custom'] = False
             else:
-                pagination.on_custom = True
+                pagination['on_custom'] = True
             embed = (await create_embed(ctx, pagination))[0]
-            pagination.page = 1
-
+            pagination['page'] = 1
             await message.edit(embed=embed)
         elif emoji == EMOJIS[1]:
-            pagination.page = 1
-            embed = create_embed(ctx, pagination)
+            pagination['page'] = 1
+            embed = (await create_embed(ctx, pagination))[0]
             await message.edit(embed=embed)
         elif emoji == EMOJIS[2]:
-            if pagination.page > 1:
-                pagination.page -= 1
-                embed = create_embed(ctx, pagination)
+            if pagination['page'] > 1:
+                pagination['page'] -= 1
+                embed = (await create_embed(ctx, pagination))[0]
                 await message.edit(embed=embed)
         elif emoji == EMOJIS[3]:
-            if pagination.page < max_length:
-                pagination.page += 1
-                embed = create_embed(ctx, pagination)
+            if pagination['page'] < max_length:
+                pagination['page'] += 1
+                embed = (await create_embed(ctx, pagination))[0]
                 await message.edit(embed=embed)
         elif emoji == EMOJIS[4]:
-            if pagination.page != max_length:
-                pagination.page = max_length
-                embed = create_embed(ctx, pagination)
+            if pagination['page'] != max_length:
+                pagination['page'] = max_length
+                embed = (await create_embed(ctx, pagination))[0]
                 await message.edit(embed=embed)

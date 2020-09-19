@@ -4,6 +4,8 @@ from config import TOKEN, PASTEBIN_API_KEY
 import discord
 from aiohttp import ClientSession
 import asyncio
+import json
+import re
 
 
 def case(prefix):
@@ -26,10 +28,7 @@ prefixes, db = asyncio.get_event_loop().run_until_complete(get_prefixes())
 
 def get_prefix(client, message):
     prefix = prefixes.get(message.guild.id)
-    if prefix:
-        return commands.when_mentioned_or(case(prefix))(client, message)
-    else:
-        return commands.when_mentioned_or(['ml!, ML!, Ml!'])(client, message)
+    return case(prefix) if prefix else ['ml!', 'ML!', 'Ml!']
 
 
 cogs = (
@@ -38,10 +37,30 @@ cogs = (
     'cogs.config',
     'jishaku'
 )
-bot = commands.Bot(command_prefix=get_prefix)
+bot = commands.Bot(
+    command_prefix=get_prefix,
+    case_insensitive=True,
+    activity=discord.Game('ml!help')
+)
 bot.remove_command('help')
 bot.db = db
 bot.prefixes = prefixes
+bot.finder = re.compile('{(.+?)}')
+
+with open('./defaults.json') as f:
+    bot.lengths = {}
+    bot.defaults = json.load(f)
+    bot.templates = {}
+    bot.names = {}
+    count = 1
+
+    for default in bot.defaults:
+        length = len(bot.finder.findall(bot.defaults[default]))
+        bot.lengths[default] = length
+        bot.templates[count] = bot.defaults[default]
+        bot.names[count] = default
+        count += 1
+
 [bot.load_extension(cog) for cog in cogs]
 
 ICON = 'https://media.discordapp.net/attachments/742973400636588056/745710912257916950/159607234227809532.png'
@@ -98,7 +117,7 @@ async def _help(ctx):
     embed.title = f'Commands'
     embed.set_thumbnail(url=ICON)
     embed.description = f'[`Source Code`]({GITHUB})\n[**Invite Me!**]({INVITE})'
-    p = ctx.prefix
+    p = ctx.prefix.lower()
 
     cmds = {
         f"{p}**prefix**": 'Shows/changes the current server prefix',
@@ -114,4 +133,5 @@ async def _help(ctx):
     await ctx.send(embed=embed)
 
 
-bot.run(TOKEN)
+if __name__ == '__main__':
+    bot.run(TOKEN)

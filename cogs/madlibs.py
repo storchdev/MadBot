@@ -5,9 +5,8 @@ import asyncio
 import re
 import json
 from datetime import datetime
-from cogs.menus import menu
+from cogs import menus
 
-finder = re.compile('{(.+?)}')
 splitter = re.compile('([.!?] *)')
 is_vowel = re.compile('^([aeiou])')
 cross_mark = '\U0000274c'
@@ -24,27 +23,12 @@ def capitalize(text: str):
     return ''.join(final_story)
 
 
-with open('./defaults.json') as f:
-    lengths = {}
-    defaults = json.load(f)
-    count = 1
-    t = {}
-    n = {}
-
-    for default in defaults:
-        length = len(finder.findall(defaults[default]))
-        lengths[default] = length
-        t[count] = defaults[default]
-        n[count] = default
-        count += 1
-
-
 class MadLibs(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
         self.in_game = []
-        self.finder = finder
+        self.finder = self.bot.finder
         self.cross_mark = '\U0000274c'
         self.custom_help = '''To **add** a custom template, do this: ```
 {0}custom add "<name>" <template>```
@@ -74,15 +58,12 @@ To **list all** custom templates, do this: ```
 
         query = 'SELECT name, template FROM madlibs WHERE guild_id = $1'
         rows = await self.bot.db.fetch(query, ctx.guild.id)
-
-        templates = t
-        names = n
-        x = len(defaults) + 1
+        total = len(self.bot.defaults) + 1
 
         for row in rows:
-            templates[x] = row['template']
-            names[x] = row[0]
-            x += 1
+            self.bot.templates[total] = row['template']
+            self.bot.names[total] = row[0]
+            total += 1
         participants = [ctx.author]
         embed = discord.Embed(
             title='A MadLibs game is starting in this channel!',
@@ -118,7 +99,17 @@ To **list all** custom templates, do this: ```
             except asyncio.TimeoutError:
                 break
 
-        await menu(ctx)
+        pagination = {
+            'on_custom': False,
+            'page': 1
+        }
+        menu = await ctx.send(embed=(await menus.create_embed(ctx, pagination))[0])
+        task = self.bot.loop.create_task(menus.menu(ctx, menu, pagination))
+
+        async def cancel():
+            task.cancel()
+            self.in_game.remove(ctx.channel.id)
+            await menu.delete()
 
         def check(m):
             if m.author.id != ctx.author.id or m.channel.id != ctx.channel.id:
@@ -126,23 +117,23 @@ To **list all** custom templates, do this: ```
             if m.content.lower() == 'cancel':
                 return True
             if m.content.isdigit():
-                if int(m.content) < x:
+                if int(m.content) < total:
                     return True
             return False
 
         try:
             message = await self.bot.wait_for('message', check=check, timeout=120)
             if message.content.lower() == 'cancel':
-                self.in_game.remove(ctx.channel.id)
+                await cancel()
                 return await ctx.send(f'The game has been canceled by the host.')
             i = int(message.content)
         except asyncio.TimeoutError:
-            self.in_game.remove(ctx.channel.id)
+            await cancel()
             return await ctx.send(f'{ctx.author.mention}: You took too long to respond with a template number!')
 
-        final_story = templates[i]
-        template_name = names[i]
-        blanks = finder.findall(final_story)
+        final_story = self.bot.templates[i]
+        template_name = self.bot.names[i]
+        blanks = self.finder.findall(final_story)
 
         async def wait_for_join(game):
 
@@ -156,6 +147,7 @@ To **list all** custom templates, do this: ```
                 await ctx.send(f'{author.mention} has joined the game!')
 
         task = self.bot.loop.create_task(wait_for_join(participants))
+        await menu.delete()
 
         progress = 1
         total = len(blanks)
@@ -165,24 +157,22 @@ To **list all** custom templates, do this: ```
             try:
                 user = participants[0]
             except IndexError:
+                task.cancel()
                 self.in_game.remove(ctx.channel.id)
                 return await ctx.send(f'Nobody is left in the game. It has been canceled.')
 
             opt = 'n' if is_vowel.match(blank) else ''
-            await ctx.send(
-                f'{user.mention}, type out a{opt} **{blank}**. ({progress}/{total})\n'
-                f'You can type `{ctx.prefix}leave` to leave.'
-            )
+            await ctx.send(f'{user.mention}, type out a{opt} **{blank}**. ({progress}/{total})')
 
             def check(m):
-                return m.channel.id == ctx.channel.id and m.author.id == user.id \
-                or m.author.id == ctx.author.id and m.content.lower() == 'cancel'
+                return m.channel.id == ctx.channel.id and m.author.id == user.id
 
             try:
                 message = await self.bot.wait_for('message', check=check, timeout=30)
                 participants.pop(0)
 
-                if message.author.id == ctx.author.id:
+                if message.author.id == ctx.author.id and message.content.lower() == 'cancel':
+                    task.cancel()
                     self.in_game.remove(ctx.channel.id)
                     return await ctx.send('The host has canceled the game.')
 
@@ -246,7 +236,7 @@ To **list all** custom templates, do this: ```
 
     @commands.group(invoke_without_command=True)
     async def custom(self, ctx):
-        await ctx.send(self.custom_help.format(ctx.prefix))
+        await ctx.send(self.custom_help.format(ctx.prefix.lower()))
 
     @custom.command(name='add', aliases=['create'])
     async def _add(self, ctx, name, *, template):
@@ -256,7 +246,7 @@ To **list all** custom templates, do this: ```
 
         template = template.strip(' ')
 
-        if not len(finder.findall(template)):
+        if not len(self.finder.findall(template)):
             return await ctx.send('Make sure to include **at least one blank** in the template. Blanks are '
                                   'placeholders marked with curly brackets, like `{noun}`.')
 
@@ -342,11 +332,11 @@ To **list all** custom templates, do this: ```
             embed.add_field(name='Creator', value=f'{user.mention}')
             embed.set_author(name=str(user), icon_url=str(user.avatar_url_as(format='png')))
 
-        blanks = finder.findall(row['template'])
+        blanks = self.finder.findall(row['template'])
         embed.add_field(name='Number of Blanks', value=f'**{len(blanks)}**')
 
         if row['created_at']:
-            created_at = datetime.fromtimestamp(row['created_at']).strftime('%m/%d/%Y at %I:%M:%S %p EST')
+            created_at = datetime.fromtimestamp(row['created_at']).strftime('%m/%d/%Y at %I:%M:%S %p PST')
             embed.add_field(name='Created At', value=created_at)
 
         if len(blanks) <= 1024:
@@ -359,14 +349,17 @@ To **list all** custom templates, do this: ```
         guild = self.bot.get_guild(guild_id)
         if not guild:
             return await ctx.send(f'Could not find server with ID `{guild_id}`.')
+
         query = 'SELECT template FROM madlibs WHERE guild_id = $1 AND name = $2'
         row = await self.bot.db.fetchrow(query, guild_id, name)
         if not row:
             return await ctx.send(f"The template with name `{name}` doesn't exist in that server.")
+
         template = row['template']
         row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
         if row:
             return await ctx.send(f'A template with the name `{name}` already exists.')
+        
         query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
                 'VALUES ($1, $2, $3, $4, $5, $6)'
         await self.bot.db.execute(query, name, template, ctx.guild.id, ctx.author.id, 0, int(time.time()))
@@ -416,22 +409,63 @@ To **list all** custom templates, do this: ```
         if ch:
             embed.add_field(name='Channel', value=ch)
 
-        played_at = datetime.fromtimestamp(story['played_at']).strftime('%m/%d/%Y at %I:%M:%S %p EST')
+        played_at = datetime.fromtimestamp(story['played_at']).strftime('%m/%d/%Y at %I:%M:%S %p PST')
         embed.add_field(name='Played At', value=played_at)
         await ctx.send(embed=embed)
+
+    @_add.error
+    async def add_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(
+                'You must provide both a **name** and a **template** for this command.'
+                f'Usage: `{ctx.prefix}{ctx.invoked_with} "<name>" <template>`'
+            )
+        else:
+            raise error
+
+    @_edit.error
+    async def edit_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(
+                'You must provide both a **name** and a **new template** for this command.'
+                f'Usage: `{ctx.prefix}{ctx.invoked_with} "<name>" <new edited template>`'
+            )
+        else:
+            raise error
+
+    @_delete.error
+    async def delete_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send('You must provide the **name** of the template to delete for this command.')
+        else:
+            raise error
+
+    @_info.error
+    async def info_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send('You must provide the **name** of the template to view for this command.')
+        else:
+            raise error
 
     @plays.error
     async def plays_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument) or \
                 isinstance(error, commands.BadArgument):
             await ctx.send(f'The correct usage is: `{ctx.prefix}plays <index> <template name>`.')
+        else:
+            raise error
 
     @_import.error
     async def import_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
             await ctx.send("You must provide a valid server ID.")
         elif isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("You must provide a **server ID** and the **name of the template** in that server.")
+            await ctx.send(
+                "You must provide a **server ID** and the **name of the template** "
+                "in that server for this command."
+            )
+        else:
+            raise error
 
 
 def setup(bot):
