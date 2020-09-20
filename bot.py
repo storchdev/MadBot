@@ -70,7 +70,7 @@ GITHUB = 'https://github.com/Stormtorch002/MadLibs'
 
 @bot.event
 async def on_message(message):
-    if not message.guild or message.bot:
+    if not message.guild or message.author.bot:
         return
     if message.content in (f'<@{bot.user.id}>', f'<@!{bot.user.id}>'):
         try:

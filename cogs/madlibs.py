@@ -106,10 +106,11 @@ To **list all** custom templates, do this: ```
         menu = await ctx.send(embed=(await menus.create_embed(ctx, pagination))[0])
         task = self.bot.loop.create_task(menus.menu(ctx, menu, pagination))
 
-        async def cancel():
-            task.cancel()
-            self.in_game.remove(ctx.channel.id)
-            await menu.delete()
+        async def delete_menu():
+            try:
+                await menu.delete()
+            except discord.NotFound:
+                pass
 
         def check(m):
             if m.author.id != ctx.author.id or m.channel.id != ctx.channel.id:
@@ -123,12 +124,15 @@ To **list all** custom templates, do this: ```
 
         try:
             message = await self.bot.wait_for('message', check=check, timeout=120)
+            await delete_menu()
+            task.cancel()
             if message.content.lower() == 'cancel':
-                await cancel()
                 return await ctx.send(f'The game has been canceled by the host.')
             i = int(message.content)
         except asyncio.TimeoutError:
-            await cancel()
+            await delete_menu()
+            task.cancel()
+            self.in_game.remove(ctx.channel.id)
             return await ctx.send(f'{ctx.author.mention}: You took too long to respond with a template number!')
 
         final_story = self.bot.templates[i]
@@ -147,7 +151,6 @@ To **list all** custom templates, do this: ```
                 await ctx.send(f'{author.mention} has joined the game!')
 
         task = self.bot.loop.create_task(wait_for_join(participants))
-        await menu.delete()
 
         progress = 1
         total = len(blanks)

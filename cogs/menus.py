@@ -3,7 +3,6 @@ from discord.ext import commands
 import asyncio
 from concurrent.futures import TimeoutError
 
-
 EMOJIS = (
     '\U0001f500',
     '\U000023ee',
@@ -63,26 +62,27 @@ async def create_embed(ctx, pagination):
 
 async def menu(ctx, message, pagination):
     embed, max_length = await create_embed(ctx, pagination)
-    [await message.add_reaction(emoji) for emoji in EMOJIS]
 
-    def check(r, u):
-        return u.id == ctx.author.id and str(r) in EMOJIS
+    async def add_reactions():
+        [await message.add_reaction(e) for e in EMOJIS]
+    ctx.bot.loop.create_task(add_reactions())
+
+    def check(payload):
+        return payload.user_id == ctx.author.id and \
+               str(payload.emoji) in EMOJIS and \
+               payload.message_id == message.id
 
     while True:
-        try:
-            done, pending = await asyncio.wait([
-                ctx.bot.wait_for('reaction_add', timeout=30, check=check),
-                ctx.bot.wait_for('reaction_remove', timeout=30, check=check)
-            ], return_when=asyncio.FIRST_COMPLETED)
-
-            emoji = done.pop().result()[0].emoji
-            for future in done:
-                future.exception()
-            for future in pending:
-                future.cancel()
-        except TimeoutError:
+        done, pending = await asyncio.wait([
+            ctx.bot.wait_for('raw_reaction_add', check=check),
+            ctx.bot.wait_for('raw_reaction_remove', check=check)
+        ], timeout=30, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        if not done:
             await message.delete()
             return
+        emoji = str(done.pop().result().emoji)
 
         if emoji == EMOJIS[0]:
             if pagination['on_custom']:
