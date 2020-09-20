@@ -37,32 +37,6 @@ async def create_tables():
             "creator_id" BIGINT,
             "plays" BIGINT,
             "created_at" INTEGER
-        )''',
-        '''CREATE TABLE IF NOT EXISTS messages (
-            "id" SERIAL,
-            "message_id" BIGINT,
-            "author_id" BIGINT,
-            "channel_id" BIGINT,
-            "guild_id" BIGINT,
-            "content" TEXT,
-            "timestamp" INTEGER,
-            "is_bot" BOOLEAN,
-            "attachments" JSON,
-            "embeds" JSON,
-            "is_edited" BOOLEAN,
-            "is_deleted" BOOLEAN
-        )''',
-        '''CREATE TABLE IF NOT EXISTS member_logs (
-            "id" SERIAL,
-            "member_id" BIGINT,
-            "nickname" VARCHAR(32),
-            "roles" JSON
-        )''',
-        '''CREATE TABLE IF NOT EXISTS user_logs (
-            "id" SERIAL,
-            "user_id" BIGINT,
-            "avatar_url" TEXT,
-            "username" VARCHAR(64)
         )'''
     ]
 

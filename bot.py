@@ -1,11 +1,11 @@
 from database import db as db_file
 from discord.ext import commands
-from config import TOKEN, PASTEBIN_API_KEY
+from config import TOKEN
 import discord
-from aiohttp import ClientSession
 import asyncio
 import json
 import re
+import time
 
 
 def case(prefix):
@@ -68,6 +68,19 @@ INVITE = 'https://discord.com/oauth2/authorize?client_id=742921922370600991&perm
 GITHUB = 'https://github.com/Stormtorch002/MadLibs'
 
 
+@bot.event
+async def on_message(message):
+    if not message.guild or message.bot:
+        return
+    if message.content in (f'<@{bot.user.id}>', f'<@!{bot.user.id}>'):
+        try:
+            msg = f'Hello, a bot here. Do `{get_prefix(bot, message)[0]}help` to see my commands.'
+            return await message.channel.send(msg)
+        except discord.Forbidden:
+            return
+    await bot.process_commands(message)
+
+
 @bot.command()
 @commands.cooldown(2, 60, commands.BucketType.user)
 async def feedback(ctx, *, user_feedback):
@@ -96,16 +109,13 @@ async def invite(ctx):
 
 
 @bot.command()
-async def pastebin(ctx, *, text):
-    data = {
-        'api_dev_key': PASTEBIN_API_KEY,
-        'api_option': 'paste',
-        'api_paste_code': text,
-        'api_paste_name': f"{ctx.author}'s Paste"
-    }
-    async with ClientSession() as session:
-        async with session.post('https://pastebin.com/api/api_post.php', data=data) as resp:
-            await ctx.send(await resp.text())
+async def ping(ctx):
+    websocket = round(bot.latency * 1000, 2)
+    t1 = time.perf_counter()
+    message = await ctx.send('Pinging...')
+    t2 = time.perf_counter()
+    api = round((t2 - t1) * 1000, 2)
+    await message.edit(content=f'**Websocket:** `{websocket}ms`\n**API:** `{api}ms`')
 
 
 @bot.command(name='help', aliases=['cmds', 'commands'])
@@ -113,23 +123,35 @@ async def _help(ctx):
     if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
         return await ctx.send('I need the `Embed Links` permission to display help.')
 
-    embed = discord.Embed(color=discord.Colour.blue())
-    embed.title = f'Commands'
+    embed = discord.Embed(
+        title='MadLibs Commands List',
+        description='Hello! I am a bot made by **Stormtorch#8984**! '
+                    'Commands are listed below with brief descriptons. '
+                    'They may not contain every single command.',
+        color=discord.Colour.blue()
+    )
     embed.set_thumbnail(url=ICON)
-    embed.description = f'[`Source Code`]({GITHUB})\n[**Invite Me!**]({INVITE})'
     p = ctx.prefix.lower()
 
     cmds = {
-        f"{p}**prefix**": 'Shows/changes the current server prefix',
-        f"{p}**invite**": 'Sends my invite link!',
-        f"{p}**madlibs**": 'Lets you host a MadLibs game',
-        f"{p}**plays**": "Gets a play from the history of the server's laughable moments",
-        f"{p}**custom**": 'Manages custom story templates for the current server',
-        f"{p}**feedback**": "Gives feedback about anything related to the bot, including source code",
-        f"{p}**pastebin**": "Not really relevant but creates a pastebin paste and sends you the URL.",
+        f"\U0001f4ac | {p}**prefix**": 'Shows/changes the current server prefix',
+        f"\U0001f517 | {p}**invite**": 'Sends my invite link!',
+        f"\U0001f9e9 | {p}**madlibs**": 'Lets you host a MadLibs game',
+        f"\U0001f602 | {p}**plays**": "Gets a play from the history of the server's laughable moments",
+        f"\U0001f60e | {p}**custom**": 'Manages custom story templates for the current server',
+        f"\U0001f4dd | {p}**feedback**": "Gives feedback about anything related to the bot, including source code",
     }
 
-    [embed.add_field(name=cmd, value=cmds[cmd], inline=False) for cmd in cmds]
+    [embed.add_field(name=cmd, value=cmds[cmd]) for cmd in cmds]
+    embed.add_field(
+        name='\U0001f447 | Other Links',
+        value=f'[**Source Code**]({GITHUB}), '
+              f'[**Invite Me!**]({INVITE})'
+    )
+    embed.set_footer(
+        text=f'\U0001f40d | discord.py v{discord.__version__}\n'
+             'Thanks to redkid.net for the default templates!'
+    )
     await ctx.send(embed=embed)
 
 
