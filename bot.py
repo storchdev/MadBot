@@ -1,4 +1,4 @@
-from database import db as db_file
+import db as db_file
 from discord.ext import commands
 from config import TOKEN
 import discord
@@ -35,6 +35,7 @@ cogs = (
     'cogs.listeners',
     'cogs.madlibs',
     'cogs.config',
+    'cogs.speech',
     'jishaku'
 )
 bot = commands.Bot(
@@ -47,7 +48,7 @@ bot.db = db
 bot.prefixes = prefixes
 bot.finder = re.compile('{(.+?)}')
 
-with open('./defaults.json') as f:
+with open('./cogs/json/defaults.json') as f:
     bot.lengths = {}
     bot.defaults = json.load(f)
     bot.templates = {}
@@ -138,18 +139,20 @@ async def _help(ctx):
         f"\U0001f517 | {p}**invite**": 'Sends my invite link!',
         f"\U0001f9e9 | {p}**madlibs**": 'Lets you host a MadLibs game',
         f"\U0001f602 | {p}**plays**": "Gets a play from the history of the server's laughable moments",
-        f"\U0001f60e | {p}**custom**": 'Manages custom story templates for the current server',
-        f"\U0001f4dd | {p}**feedback**": "Gives feedback about anything related to the bot, including source code",
+        f"\U0001f60e | {p}**custom**": 'Manages custom story templates',
+        f"\U0001f4dd | {p}**feedback**": "Gives feedback about anything related to the bot",
+        f"\U0001f524 | {p}**pos**": "An aid to show info on the parts of speech",
+        f"\U0001f3d3 | {p}**ping**": "ponggers"
     }
 
     [embed.add_field(name=cmd, value=cmds[cmd]) for cmd in cmds]
     embed.add_field(
-        name='\U0001f447 | Other Links',
-        value=f'[**Source Code**]({GITHUB}), '
-              f'[**Invite Me!**]({INVITE})'
+        name='\U0001f447 Other Links \U0001f448',
+        value=f'\u2022 [**Source Code**]({GITHUB})\n'
+              f'\u2022 [**Invite Me!**]({INVITE})'
     )
     embed.set_footer(
-        text=f'\U0001f40d | discord.py v{discord.__version__}\n'
+        text=f'\U0001f40d discord.py v{discord.__version__}\n'
              'Thanks to redkid.net for the default templates!'
     )
     await ctx.send(embed=embed)

@@ -32,8 +32,8 @@ class MadLibs(commands.Cog):
         self.cross_mark = '\U0000274c'
         self.custom_help = '''To **add** a custom template, do this: ```
 {0}custom add "<name>" <template>```
-Surround the name of blanks with curly brackets {{}}
-Example: `{0}custom add "example" The {{noun}} is {{adjective}}`.
+*Surround the name of blanks with curly brackets {{}}
+Example: {0}custom add "example" The {{noun}} is {{adjective}}.*
 
 To **import** a custom template from another server, do this:  ```
 {0}custom import <server ID> <name>```
