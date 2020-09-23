@@ -10,6 +10,13 @@ from cogs import menus
 splitter = re.compile('([.!?] *)')
 is_vowel = re.compile('^([aeiou])')
 cross_mark = '\U0000274c'
+OFFSET = 10800
+
+
+def readable(timestamp: int):
+    timestamp += OFFSET 
+    dt = datetime.fromtimestamp(timestamp)
+    return dt.strftime('%m/%d/%Y at %I:%M:%S %p EST')
 
 
 def capitalize(text: str):
@@ -55,6 +62,7 @@ To **list all** custom templates, do this: ```
             return await ctx.send(f'{self.cross_mark} I need the `Embed Links` permission start a game.')
 
         self.in_game.append(ctx.channel.id)
+        p = ctx.prefix.lower()
 
         query = 'SELECT name, template FROM madlibs WHERE guild_id = $1'
         rows = await self.bot.db.fetch(query, ctx.guild.id)
@@ -70,7 +78,7 @@ To **list all** custom templates, do this: ```
             description=f'Send `join` in chat to join!',
             color=discord.Colour.green())
         embed.set_footer(
-            text='If you are the host, please send [start] to start the game, or [cancel] to stop it.'
+            text=f'If you are the host, please send [{p}start] to start the game, or [{p}cancel] to stop it.'
         )
         await ctx.send(embed=embed)
 
@@ -80,7 +88,7 @@ To **list all** custom templates, do this: ```
         def check(m):
             return m.channel.id == ctx.channel.id and (
                     m.content.lower() == 'join' and m.author.id != ctx.author.id
-                    or m.content.lower() in ('start', 'cancel')
+                    or m.content.lower() in (p + 'start', p + 'cancel')
                     and m.author.id == ctx.author.id
             )
 
@@ -88,7 +96,7 @@ To **list all** custom templates, do this: ```
             try:
                 message = await self.bot.wait_for('message', check=check, timeout=end - time.time())
                 if message.author.id == ctx.author.id:
-                    if message.content.lower() == 'start':
+                    if message.content.lower() == p + 'start':
                         break
                     else:
                         self.in_game.remove(ctx.channel.id)
@@ -112,10 +120,16 @@ To **list all** custom templates, do this: ```
             except discord.NotFound:
                 pass
 
+        async def end():
+            self.in_game.remove(ctx.channel.id)
+            await delete_menu()
+            if not task.done():
+                task.cancel()
+
         def check(m):
             if m.author.id != ctx.author.id or m.channel.id != ctx.channel.id:
                 return False
-            if m.content.lower() == 'cancel':
+            if m.content.lower() == p + 'cancel':
                 return True
             if m.content.isdigit():
                 if int(m.content) < total:
@@ -126,13 +140,11 @@ To **list all** custom templates, do this: ```
             message = await self.bot.wait_for('message', check=check, timeout=120)
             await delete_menu()
             task.cancel()
-            if message.content.lower() == 'cancel':
+            if message.content.lower() == p + 'cancel':
                 return await ctx.send(f'The game has been canceled by the host.')
             i = int(message.content)
         except asyncio.TimeoutError:
-            await delete_menu()
-            task.cancel()
-            self.in_game.remove(ctx.channel.id)
+            await end()
             return await ctx.send(f'{ctx.author.mention}: You took too long to respond with a template number!')
 
         final_story = self.bot.templates[i]
@@ -143,7 +155,7 @@ To **list all** custom templates, do this: ```
 
             def wait_check(m):
                 return m.channel.id == ctx.channel.id and m.content.lower() == 'join' and \
-                       m.author.id not in [p.id for p in game]
+                       m.author.id not in [player.id for player in game]
 
             while True:
                 author = (await self.bot.wait_for('message', check=wait_check)).author
@@ -174,12 +186,11 @@ To **list all** custom templates, do this: ```
                 message = await self.bot.wait_for('message', check=check, timeout=30)
                 participants.pop(0)
 
-                if message.author.id == ctx.author.id and message.content.lower() == 'cancel':
-                    task.cancel()
-                    self.in_game.remove(ctx.channel.id)
+                if message.author.id == ctx.author.id and message.content.lower() == p + 'cancel':
+                    await end()
                     return await ctx.send('The host has canceled the game.')
 
-                if message.content.lower() == f'{ctx.prefix.lower()}leave':
+                if message.content.lower() == p + 'leave':
                     await ctx.send(f'{message.author.mention} has left the game.')
                 elif len(message.content) > 32:
                     await ctx.send(f'Your word must be 32 characters or under. Skipping your turn.')
@@ -324,8 +335,10 @@ To **list all** custom templates, do this: ```
         if not row:
             return await ctx.send(f'{self.cross_mark} No template called `{name}` was found.')
 
-        embed = discord.Embed(color=discord.Colour.blue())
-        embed.title = name
+        embed = discord.Embed(
+            title=name,
+            color=discord.Colour.blue()
+        )
         embed.add_field(name='Number of Plays', value=f'**{row["plays"]}**')
 
         user = ctx.guild.get_member(row['creator_id'])
@@ -339,7 +352,7 @@ To **list all** custom templates, do this: ```
         embed.add_field(name='Number of Blanks', value=f'**{len(blanks)}**')
 
         if row['created_at']:
-            created_at = datetime.fromtimestamp(row['created_at']).strftime('%m/%d/%Y at %I:%M:%S %p PST')
+            created_at = readable(row['created_at'])
             embed.add_field(name='Created At', value=created_at)
 
         if len(blanks) <= 1024:
@@ -388,16 +401,17 @@ To **list all** custom templates, do this: ```
         except IndexError:
             return await ctx.send(f'Only `{len(rows)}` stories exist for that request.')
 
-        embed = discord.Embed(color=discord.Colour.blue())
-
-        if len(story['final_story']) > 2048:
-            desc = story['final_story'][:2044] + '...'
+        final_story = story['final_story']
+        if len(final_story) > 2048:
+            desc = final_story[:2044] + '...'
         else:
-            desc = story['final_story']
+            desc = final_story
 
-        embed.description = desc
-        embed.title = story['name']
-
+        embed = discord.Embed(
+            title=story['name'],
+            description=desc,
+            color=discord.Colour.blue()
+        )
         participants = []
         for user_id in json.loads(story['participants']):
             user = self.bot.get_user(user_id)
@@ -412,7 +426,7 @@ To **list all** custom templates, do this: ```
         if ch:
             embed.add_field(name='Channel', value=ch)
 
-        played_at = datetime.fromtimestamp(story['played_at']).strftime('%m/%d/%Y at %I:%M:%S %p PST')
+        played_at = readable(story['played_at'])
         embed.add_field(name='Played At', value=played_at)
         await ctx.send(embed=embed)
 

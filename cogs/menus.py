@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import asyncio
-from concurrent.futures import TimeoutError
 
 EMOJIS = (
     '\U0001f500',
