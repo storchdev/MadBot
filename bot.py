@@ -11,6 +11,7 @@ import time
 
 cogs = (
     'cogs.listeners',
+    'cogs.blacklist',
     'cogs.madlibs',
     'cogs.config',
     'cogs.speech',
