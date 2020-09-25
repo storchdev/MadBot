@@ -1,34 +1,12 @@
-import db as db_file
+from cogs.prefix import get_prefix, prefixes
 from discord.ext import commands
 from config import TOKEN
+from db import db
 import discord
 import asyncio
 import json
 import re
 import time
-
-
-def case(prefix):
-    return [
-        prefix,
-        prefix.upper(),
-        prefix.lower(),
-        prefix.capitalize()
-    ]
-
-
-async def get_prefixes():
-    d = await db_file.create_tables()
-    query = 'SELECT guild_id, prefix FROM prefixes'
-    return {res['guild_id']: res['prefix'] for res in await d.fetch(query)}, d
-
-
-prefixes, db = asyncio.get_event_loop().run_until_complete(get_prefixes())
-
-
-def get_prefix(client, message):
-    prefix = prefixes.get(message.guild.id)
-    return case(prefix) if prefix else ['ml!', 'ML!', 'Ml!']
 
 
 cogs = (
