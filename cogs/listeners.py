@@ -1,4 +1,5 @@
 from discord.ext import commands
+from cogs.blacklist import Blacklisted
 
 
 class Listeners(commands.Cog):
@@ -18,6 +19,8 @@ class Listeners(commands.Cog):
     async def on_command_error(self, ctx, error):
 
         if isinstance(error, commands.CommandNotFound):
+            return
+        elif isinstance(error, Blacklisted):
             return
         elif isinstance(error, commands.MissingPermissions):
             missing_perms = ' '.join([word.capitalize() for word in error.missing_perms[0].split('_')])
