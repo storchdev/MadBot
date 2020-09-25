@@ -3,7 +3,6 @@ from discord.ext import commands
 from config import TOKEN
 from db import db
 import discord
-import asyncio
 import json
 import re
 import time

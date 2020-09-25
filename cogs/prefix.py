@@ -1,4 +1,5 @@
 from db import db
+import asyncio
 
 
 def _case(prefix):
@@ -21,4 +22,3 @@ prefixes = asyncio.get_event_loop().run_until_complete(_get_prefixes())
 def get_prefix(client, message):
     prefix = prefixes.get(message.guild.id)
     return _case(prefix) if prefix else ['ml!', 'ML!', 'Ml!']
-   

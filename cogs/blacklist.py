@@ -8,8 +8,8 @@ class Blacklisted(commands.CheckFailure):
     
     
 def is_blacklisted(ctx):
-    if ctx.author.id not in ctx.bot.blacklisted:
-        raise Blacklisted(f'{user} is blacklisted.')
+    if ctx.author.id in ctx.bot.blacklisted:
+        raise Blacklisted(f'{ctx.author} is blacklisted.')
     return True 
 
 
@@ -17,7 +17,7 @@ class Blacklist(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot 
-        self.bot.loop.create_task(get_blacklisted())
+        self.bot.loop.create_task(self.get_blacklisted())
         
     async def get_blacklisted(self):
         query = 'SELECT user_id FROM blacklisted'
@@ -36,4 +36,3 @@ class Blacklist(commands.Cog):
         
 def setup(bot):
     bot.add_cog(Blacklist(bot))
-   
