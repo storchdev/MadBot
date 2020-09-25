@@ -13,7 +13,7 @@ async def _connect():
 db = loop.run_until_complete(_connect())
 
 
-async def create_tables():
+async def _create_tables():
     queries = [
         '''CREATE TABLE IF NOT EXISTS prefixes (
             "id" SERIAL,
@@ -41,7 +41,6 @@ async def create_tables():
     ]
 
     [await db.execute(query) for query in queries]
-    return db
 
 
-loop.run_until_complete(create_tables())
+loop.run_until_complete(_create_tables())
