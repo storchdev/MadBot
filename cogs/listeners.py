@@ -1,5 +1,4 @@
 from discord.ext import commands
-from cogs.blacklist import Blacklisted
 
 
 class Listeners(commands.Cog):
@@ -20,11 +19,18 @@ class Listeners(commands.Cog):
 
         if isinstance(error, commands.CommandNotFound):
             return
-        elif isinstance(error, Blacklisted):
+        elif isinstance(error, self.bot.Blacklisted):
             return
+        elif isinstance(error, commands.NotOwner):
+            await ctx.send('\\\u274c This command is restricted for the owner.')
+        elif isinstance(error, self.bot.CannotEmbedLinks):
+            await ctx.send('\\\u274c I need the `Embed Links` permission to have all functionality!')
         elif isinstance(error, commands.MissingPermissions):
             missing_perms = ' '.join([word.capitalize() for word in error.missing_perms[0].split('_')])
-            await ctx.send(f'You need the `{missing_perms}` permission to do `{ctx.prefix}{ctx.invoked_with}`.')
+            await ctx.send(f'\\\u274c '
+                           f'You need the `{missing_perms}` permission to do `{ctx.prefix}{ctx.invoked_with}`.')
+        else:
+            raise error
 
 
 def setup(bot):

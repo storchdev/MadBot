@@ -7,7 +7,6 @@ import json
 import re
 import time
 
-
 cogs = (
     'cogs.listeners',
     'cogs.blacklist',
@@ -47,13 +46,27 @@ INVITE = 'https://discord.com/oauth2/authorize?client_id=742921922370600991&perm
 GITHUB = 'https://github.com/Stormtorch002/MadLibs'
 
 
+class CannotEmbedLinks(commands.CheckFailure):
+    pass
+
+
+bot.CannotEmbedLinks = CannotEmbedLinks
+
+
+@bot.check
+def embed_links(ctx):
+    if not ctx.channel.permissions_for(ctx.me).embed_links:
+        raise CannotEmbedLinks()
+    return True
+
+
 @bot.event
 async def on_message(message):
     if not message.guild or message.author.bot:
         return
     if message.content in (f'<@{bot.user.id}>', f'<@!{bot.user.id}>'):
         try:
-            msg = f'Hello, a bot here. Do `{get_prefix(bot, message)[0]}help` to see my commands.'
+            msg = f':wave: Hello, a bot here. Do `{get_prefix(bot, message)[0]}help` to see my commands.'
             return await message.channel.send(msg)
         except discord.Forbidden:
             return

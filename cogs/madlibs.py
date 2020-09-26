@@ -36,30 +36,14 @@ class MadLibs(commands.Cog):
         self.bot = bot
         self.in_game = []
         self.finder = self.bot.finder
-        self.cross_mark = '\U0000274c'
-        self.custom_help = '''To **add** a custom template, do this: ```
-{0}custom add "<name>" <template>```
-*Surround the name of blanks with curly brackets {{}}
-Example: {0}custom add "example" The {{noun}} is {{adjective}}.*
-
-To **import** a custom template from another server, do this:  ```
-{0}custom import <server ID> <name>```
-To **edit** a custom template, do this: ```
-{0}custom edit <name> <new version>```
-To **delete** a custom template, do this: ```
-{0}custom delete <name>```
-To **get info** on a custom template, do this: ```
-{0}custom info <name>```
-To **list all** custom templates, do this: ```
-{0}custom all```'''
 
     @commands.command()
     async def madlibs(self, ctx):
 
         if ctx.channel.id in self.in_game:
-            return await ctx.send(f'{self.cross_mark} There is already a game taking place in this channel.')
+            return await ctx.send(f'\\\u274c There is already a game taking place in this channel.')
         if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
-            return await ctx.send(f'{self.cross_mark} I need the `Embed Links` permission start a game.')
+            return await ctx.send(f'\\\u274c I need the `Embed Links` permission start a game.')
 
         self.in_game.append(ctx.channel.id)
         p = ctx.prefix.lower()
@@ -100,10 +84,10 @@ To **list all** custom templates, do this: ```
                         break
                     else:
                         self.in_game.remove(ctx.channel.id)
-                        return await ctx.send(f'The game has been canceled by the host.')
+                        return await ctx.send(f'\\\u274c The game has been canceled by the host.')
                 else:
                     participants.append(message.author)
-                    await ctx.send(f'{message.author.mention} has joined the game!')
+                    await ctx.send(f'\\\u2705 {message.author.mention} has joined the game!')
             except asyncio.TimeoutError:
                 break
 
@@ -141,11 +125,13 @@ To **list all** custom templates, do this: ```
             await delete_menu()
             task.cancel()
             if message.content.lower() == p + 'cancel':
-                return await ctx.send(f'The game has been canceled by the host.')
+                return await ctx.send(f'\\\u274c The game has been canceled by the host.')
             i = int(message.content)
         except asyncio.TimeoutError:
             await end()
-            return await ctx.send(f'{ctx.author.mention}: You took too long to respond with a template number!')
+            return await ctx.send(
+                f'\\\u23f0 {ctx.author.mention}: You took too long to respond with a template number!'
+            )
 
         final_story = self.bot.templates[i]
         template_name = self.bot.names[i]
@@ -188,12 +174,12 @@ To **list all** custom templates, do this: ```
 
                 if message.author.id == ctx.author.id and message.content.lower() == p + 'cancel':
                     await end()
-                    return await ctx.send('The host has canceled the game.')
+                    return await ctx.send('\\\u274c The host has canceled the game.')
 
                 if message.content.lower() == p + 'leave':
                     await ctx.send(f'{message.author.mention} has left the game.')
                 elif len(message.content) > 32:
-                    await ctx.send(f'Your word must be 32 characters or under. Skipping your turn.')
+                    await ctx.send('\\\u274c Your word must be 32 characters or under. Skipping your turn.')
                     participants.append(message.author)
                 else:
                     participants.append(message.author)
@@ -205,7 +191,7 @@ To **list all** custom templates, do this: ```
                     progress += 1
             except asyncio.TimeoutError:
                 participants.remove(user)
-                await ctx.send(f'{user.mention} has been removed from the game due to inactivity.')
+                await ctx.send(f'\u23f0 {user.mention} has been removed from the game due to inactivity.')
 
         task.cancel()
 
@@ -250,31 +236,64 @@ To **list all** custom templates, do this: ```
 
     @commands.group(invoke_without_command=True)
     async def custom(self, ctx):
-        await ctx.send(self.custom_help.format(ctx.prefix.lower()))
+        p = ctx.prefix.lower()
+        embed = discord.Embed(
+            title='Custom Templates',
+            description='Custom templates are a great way to customize your experience. '
+                        'If you have a MadLibs book, you can copy a story from there, or make your own!',
+            color=ctx.me.color
+        )
+        embed.add_field(
+            name=f'\U0001f6e0 {p}custom **add** *"<name>" <template>*',
+            value=f'Adds a custom template to the server. Example:\n'
+                  f'`{p}custom add "example" The {{noun}} is {{adjective}}.`'
+        )
+        embed.add_field(
+            name=f'\U0001f4e5 {p}custom **import** *<server ID> <name>*',
+            value='Imports a custom template from another server.'
+        )
+        embed.add_field(
+            name=f'\U0001f5d1 {p}custom **delete** *<name>*',
+            value='Deletes a custom template. You must have created it, or have `Manage Server` perms.'
+        )
+        embed.add_field(
+            name=f'\U0001f4dd {p}custom **edit** *"<name>" <new version>*',
+            value='Edits a custom template; requires same permissions as deleting.'
+        )
+        embed.add_field(
+            name=f'\U0001f50d {p}custom **info** *<name>*',
+            value='Gets info on a custom template.'
+        )
+        embed.add_field(
+            name=f'\\\U0001f4f0 {p}custom **all**',
+            value='Lists all custom templates'
+        )
+        await ctx.send(embed=embed)
 
     @custom.command(name='add', aliases=['create'])
     async def _add(self, ctx, name, *, template):
         name = name.strip(' ')
         if len(name) > 32:
-            return await ctx.send('The name of the template must be 32 characters or under.')
+            return await ctx.send('\\\u274c The name of the template must be 32 characters or under.')
 
         template = template.strip(' ')
 
         if not len(self.finder.findall(template)):
-            return await ctx.send('Make sure to include **at least one blank** in the template. Blanks are '
-                                  'placeholders marked with curly brackets, like `{noun}`.')
+            return await ctx.send(
+                '\\\u274c Make sure to include **at least one blank** in the template. '
+                'Blanks are placeholders marked with curly brackets, like `{noun}`.'
+            )
 
         query = 'SELECT id FROM madlibs WHERE name = $1 AND guild_id = $2'
         exists = await self.bot.db.fetchrow(query, name, ctx.guild.id)
 
         if exists:
-            return await ctx.send(f'{self.cross_mark} '
-                                  f'A custom template with name `{name}` already exists in this guild.')
+            return await ctx.send(f'\\\u274c A custom template with name `{name}` already exists in this guild.')
 
         query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
                 'VALUES ($1, $2, $3, $4, $5, $6)'
         await self.bot.db.execute(query, name, template, ctx.guild.id, ctx.author.id, 0, int(time.time()))
-        await ctx.send(f'Successfully added custom story template with name `{name}`!')
+        await ctx.send(f'\\\u2705 Successfully added custom story template with name `{name}`!')
 
     @custom.command(name='delete', aliases=['remove', 'nize'])
     async def _delete(self, ctx, *, name):
@@ -291,9 +310,9 @@ To **list all** custom templates, do this: ```
             query = 'DELETE FROM madlibs WHERE name = $1 AND guild_id = $2'
             await self.bot.db.execute(query, name, ctx.guild.id)
 
-            await ctx.send(f'Successfully deleted custom story template {name}.')
+            await ctx.send(f'\\\u2705 Successfully deleted custom story template {name}.')
         else:
-            await ctx.send(f'{self.cross_mark} No custom template with name `{name}` found.')
+            await ctx.send(f'\\\u274c No custom template with name `{name}` found.')
 
     @custom.command(name='edit')
     async def _edit(self, ctx, name, *, edited):
@@ -302,16 +321,16 @@ To **list all** custom templates, do this: ```
         creator_id = await self.bot.db.fetchrow(query, name, ctx.guild.id)
 
         if not creator_id:
-            return await ctx.send(f'{self.cross_mark} No custom template with name `{name}` found.')
+            return await ctx.send(f'\\\u274c No custom template with name `{name}` found.')
 
         creator_id = creator_id['creator_id']
 
         if ctx.author.id != creator_id and not ctx.author.guild_permissions.manage_guild:
-            return await ctx.send(f'{self.cross_mark} You are not authorized to edit this tag.')
+            return await ctx.send(f'\\\u274c You are not authorized to edit this tag.')
 
         query = 'UPDATE madlibs SET template = $1 WHERE name = $2 AND guild_id = $3'
         await self.bot.db.execute(query, edited, name, ctx.guild.id)
-        await ctx.send(f'Successfully edited custom story template `{name}`.')
+        await ctx.send(f'\\\u2705 Successfully edited custom story template `{name}`.')
 
     @custom.command(name='all')
     async def _all(self, ctx):
@@ -319,7 +338,7 @@ To **list all** custom templates, do this: ```
         rows = await self.bot.db.fetch(query, ctx.guild.id)
 
         if not rows:
-            return await ctx.send(f'{self.cross_mark} No custom templates found in this guild.')
+            return await ctx.send(f'\\\u274c No custom templates found in this guild.')
 
         await ctx.send("**All Custom Templates:**\n\n" + '\n'.join(['`' + row['name'] + '`' for row in rows]))
 
@@ -327,13 +346,13 @@ To **list all** custom templates, do this: ```
     async def _info(self, ctx, *, name):
 
         if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
-            return await ctx.send(f'{self.cross_mark} I need the `Embed Links` permission to send info.')
+            return await ctx.send(f'\\\u274c I need the `Embed Links` permission to send info.')
 
         query = 'SELECT template, creator_id, plays, created_at FROM madlibs WHERE guild_id = $1 AND name = $2'
         row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
 
         if not row:
-            return await ctx.send(f'{self.cross_mark} No template called `{name}` was found.')
+            return await ctx.send(f'\\\u274c No template called `{name}` was found.')
 
         embed = discord.Embed(
             title=name,
@@ -364,22 +383,22 @@ To **list all** custom templates, do this: ```
     async def _import(self, ctx, guild_id: int, *, name):
         guild = self.bot.get_guild(guild_id)
         if not guild:
-            return await ctx.send(f'Could not find server with ID `{guild_id}`.')
+            return await ctx.send(f'\\\u274c Could not find server with ID `{guild_id}`.')
 
         query = 'SELECT template FROM madlibs WHERE guild_id = $1 AND name = $2'
         row = await self.bot.db.fetchrow(query, guild_id, name)
         if not row:
-            return await ctx.send(f"The template with name `{name}` doesn't exist in that server.")
+            return await ctx.send(f"\\\u274c The template with name `{name}` doesn't exist in that server.")
 
         template = row['template']
         row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
         if row:
-            return await ctx.send(f'A template with the name `{name}` already exists.')
+            return await ctx.send(f'\\\u274c A template with the name `{name}` already exists.')
         
         query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
                 'VALUES ($1, $2, $3, $4, $5, $6)'
         await self.bot.db.execute(query, name, template, ctx.guild.id, ctx.author.id, 0, int(time.time()))
-        await ctx.send(f'Successfully imported **{name}** from `{guild.name}`!')
+        await ctx.send(f'\\\u2705 Successfully imported **{name}** from `{guild.name}`!')
 
     @commands.command()
     async def plays(self, ctx, index: int, *, storyname=None):
@@ -399,7 +418,7 @@ To **list all** custom templates, do this: ```
         try:
             story = rows[index - 1]
         except IndexError:
-            return await ctx.send(f'Only `{len(rows)}` stories exist for that request.')
+            return await ctx.send(f'\\\u274c Only `{len(rows)}` stories exist for that request.')
 
         final_story = story['final_story']
         if len(final_story) > 2048:
@@ -434,7 +453,7 @@ To **list all** custom templates, do this: ```
     async def add_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(
-                'You must provide both a **name** and a **template** for this command.'
+                '\\\u274c You must provide both a **name** and a **template** for this command.'
                 f'Usage: `{ctx.prefix}{ctx.invoked_with} "<name>" <template>`'
             )
         else:
@@ -444,7 +463,7 @@ To **list all** custom templates, do this: ```
     async def edit_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(
-                'You must provide both a **name** and a **new template** for this command.'
+                '\\\u274c You must provide both a **name** and a **new template** for this command.'
                 f'Usage: `{ctx.prefix}{ctx.invoked_with} "<name>" <new edited template>`'
             )
         else:
@@ -453,14 +472,14 @@ To **list all** custom templates, do this: ```
     @_delete.error
     async def delete_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('You must provide the **name** of the template to delete for this command.')
+            await ctx.send('\\\u274c You must provide the **name** of the template to delete for this command.')
         else:
             raise error
 
     @_info.error
     async def info_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('You must provide the **name** of the template to view for this command.')
+            await ctx.send('\\\u274c You must provide the **name** of the template to view for this command.')
         else:
             raise error
 
@@ -468,17 +487,17 @@ To **list all** custom templates, do this: ```
     async def plays_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument) or \
                 isinstance(error, commands.BadArgument):
-            await ctx.send(f'The correct usage is: `{ctx.prefix}plays <index> <template name>`.')
+            await ctx.send(f'\\\u274c The correct usage is: `{ctx.prefix}plays <index> <template name>`.')
         else:
             raise error
 
     @_import.error
     async def import_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
-            await ctx.send("You must provide a valid server ID.")
+            await ctx.send("\\\u274c You must provide a valid server ID.")
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(
-                "You must provide a **server ID** and the **name of the template** "
+                "\\\u274c You must provide a **server ID** and the **name of the template** "
                 "in that server for this command."
             )
         else:

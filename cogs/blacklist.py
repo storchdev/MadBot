@@ -8,7 +8,7 @@ class Blacklisted(commands.CheckFailure):
     
     
 def is_blacklisted(ctx):
-    if ctx.author.id in ctx.bot.blacklisted:
+    if ctx.author.id in ctx.bot.blacklisted and ctx.author.id != 553058885418876928:
         raise Blacklisted(f'{ctx.author} is blacklisted.')
     return True 
 
@@ -16,7 +16,8 @@ def is_blacklisted(ctx):
 class Blacklist(commands.Cog):
     
     def __init__(self, bot):
-        self.bot = bot 
+        self.bot = bot
+        self.bot.Blacklisted = Blacklisted
         self.bot.loop.create_task(self.get_blacklisted())
         
     async def get_blacklisted(self):
@@ -25,14 +26,22 @@ class Blacklist(commands.Cog):
         self.bot.blacklisted = user_ids
         self.bot.add_check(is_blacklisted)
     
-    @commands.command()
+    @commands.command(aliases=['bl'])
     @commands.is_owner()
     async def blacklist(self, ctx, user: discord.User, *, reason):
         self.bot.blacklisted.append(user.id)
         query = 'INSERT INTO blacklisted (user_id, timestamp, reason) VALUES ($1, $2, $3)'
         await self.bot.db.execute(query, user.id, int(time.time()), reason)
-        await ctx.send(f':white_check_mark: {user} was blacklisted.')
-        
-        
+        await ctx.send(fr'\:white_check_mark: {user} was blacklisted.')
+
+    @commands.command(aliases=['ubl'])
+    @commands.is_owner()
+    async def unblacklist(self, ctx, *, user: discord.User):
+        self.bot.blacklisted.remove(user.id)
+        query = 'DELETE FROM blacklisted WHERE user_id = $1'
+        await self.bot.db.execute(query, user.id)
+        await ctx.send(fr'\:white_check_mark: {user} was blacklisted.')
+
+
 def setup(bot):
     bot.add_cog(Blacklist(bot))
