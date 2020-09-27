@@ -6,6 +6,7 @@ import discord
 import json
 import re
 import time
+import aiohttp
 
 cogs = (
     'cogs.listeners',
@@ -18,12 +19,14 @@ cogs = (
 bot = commands.Bot(
     command_prefix=get_prefix,
     case_insensitive=True,
-    activity=discord.Game('ml!help')
+    activity=discord.Game('ml!help'),
+    help_command=None
 )
-bot.remove_command('help')
 bot.db = db
 bot.prefixes = prefixes
 bot.finder = re.compile('{(.+?)}')
+bot.success = '<:success:759792866813411348>'
+bot.error = '<:error:759792878238695484>'
 
 with open('./cogs/json/defaults.json') as f:
     bot.lengths = {}
@@ -44,6 +47,7 @@ with open('./cogs/json/defaults.json') as f:
 ICON = 'https://media.discordapp.net/attachments/742973400636588056/745710912257916950/159607234227809532.png'
 INVITE = 'https://discord.com/oauth2/authorize?client_id=742921922370600991&permissions=19521&scope=bot'
 GITHUB = 'https://github.com/Stormtorch002/MadLibs'
+URBAN = 'https://api.urbandictionary.com/v0/define'
 
 
 class CannotEmbedLinks(commands.CheckFailure):
@@ -60,6 +64,30 @@ def embed_links(ctx):
     return True
 
 
+intervals = {
+    'weeks': 604800,
+    'days': 86400,
+    'hours': 3600,
+    'minutes': 60,
+    'seconds': 1
+}
+
+
+def humanize(seconds: float):
+    seconds = int(seconds)
+    result = []
+
+    for name in intervals:
+        amount = intervals[name]
+        value = seconds // amount
+        if value:
+            seconds -= value * amount
+            if value == 1:
+                name = name.rstrip('s')
+            result.append(f'{value} {name}')
+    return ', '.join(result)
+
+
 @bot.event
 async def on_message(message):
     if not message.guild or message.author.bot:
@@ -67,9 +95,9 @@ async def on_message(message):
     if message.content in (f'<@{bot.user.id}>', f'<@!{bot.user.id}>'):
         try:
             msg = f':wave: Hello, a bot here. Do `{get_prefix(bot, message)[0]}help` to see my commands.'
-            return await message.channel.send(msg)
+            await message.channel.send(msg)
         except discord.Forbidden:
-            return
+            pass
     await bot.process_commands(message)
 
 
@@ -120,7 +148,7 @@ async def _help(ctx):
         description='Hello! I am a bot made by **Stormtorch#8984**! '
                     'Commands are listed below with brief descriptons. '
                     'They may not contain every single command.',
-        color=discord.Colour.blue()
+        color=discord.Colour.blue() if ctx.me.color == discord.Colour.default() else ctx.me.color
     )
     embed.set_thumbnail(url=ICON)
     p = ctx.prefix.lower()
@@ -148,6 +176,34 @@ async def _help(ctx):
     )
     await ctx.send(embed=embed)
 
+
+@bot.command()
+async def urban(ctx, index: commands.Greedy[int], *, term=None):
+    if not term:
+        return await ctx.send(f':no_entry: You need to provide a word to look up!')
+    index = 0 if not index else index[0]
+    term = term.strip().replace(' ', '+')
+
+    async with bot.session.get(URBAN, params={'term': term}) as resp:
+        if resp.status != 200:
+            return await ctx.send(f':no_entry: `{resp.status}` Something went wrong...')
+        data = await resp.json()
+
+    try:
+        data = data['list'][index]
+    except (KeyError, ValueError):
+        return await ctx.send(f':no_entry: Definition not found.')
+
+    embed = discord.Embed(
+        title=data['word'],
+        url=data['permalink'],
+        description=data['definition'].replace('[', '').replace(']', ''),
+        color=discord.Colour.blue()
+    )
+    embed.set_footer(text=f'By {data["author"]}')
+    embed.add_field(name='\U0001f44d', value=str(data['thumbs_up']))
+    embed.add_field(name='\U0001f44e', value=str(data['thumbs_down']))
+    await ctx.send(embed=embed)
 
 if __name__ == '__main__':
     bot.run(TOKEN)

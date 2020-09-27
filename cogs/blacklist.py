@@ -32,7 +32,7 @@ class Blacklist(commands.Cog):
         self.bot.blacklisted.append(user.id)
         query = 'INSERT INTO blacklisted (user_id, timestamp, reason) VALUES ($1, $2, $3)'
         await self.bot.db.execute(query, user.id, int(time.time()), reason)
-        await ctx.send(fr'\:white_check_mark: {user} was blacklisted.')
+        await ctx.send(f':thumbsup: {user} was blacklisted.')
 
     @commands.command(aliases=['ubl'])
     @commands.is_owner()
@@ -40,7 +40,7 @@ class Blacklist(commands.Cog):
         self.bot.blacklisted.remove(user.id)
         query = 'DELETE FROM blacklisted WHERE user_id = $1'
         await self.bot.db.execute(query, user.id)
-        await ctx.send(fr'\:white_check_mark: {user} was blacklisted.')
+        await ctx.send(f':thumbsup: {user} was unblacklisted.')
 
 
 def setup(bot):

@@ -19,6 +19,6 @@ async def _get_prefixes():
 prefixes = asyncio.get_event_loop().run_until_complete(_get_prefixes())
 
 
-def get_prefix(client, message):
-    prefix = prefixes.get(message.guild.id)
+def get_prefix(bot, message):
+    prefix = bot.prefixes.get(message.guild.id)
     return _case(prefix) if prefix else ['ml!', 'ML!', 'Ml!']
