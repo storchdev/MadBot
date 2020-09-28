@@ -37,6 +37,20 @@ class MadLibs(commands.Cog):
         self.in_game = []
         self.finder = self.bot.finder
 
+        with open('./cogs/json/defaults.json') as f:
+            bot.lengths = {}
+            bot.defaults = json.load(f)
+            bot.templates = {}
+            bot.names = {}
+            count = 1
+
+            for default in bot.defaults:
+                length = len(bot.finder.findall(bot.defaults[default]))
+                bot.lengths[default] = length
+                bot.templates[count] = bot.defaults[default]
+                bot.names[count] = default
+                count += 1
+
     @commands.command()
     async def madlibs(self, ctx):
 

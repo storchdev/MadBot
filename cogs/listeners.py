@@ -1,6 +1,7 @@
 from discord.ext import commands
 import aiohttp
 import time
+from cogs.utils import humanize
 
 
 class Listeners(commands.Cog):
@@ -30,6 +31,11 @@ class Listeners(commands.Cog):
             await ctx.send(f':no_entry: This command is restricted for the owner.')
         elif isinstance(error, self.bot.CannotEmbedLinks):
             await ctx.send(f':no_entry: I need the `Embed Links` permission to have all functionality!')
+        elif isinstance(error, commands.CommandOnCooldown):
+            rate, per = error.cooldown.rate, error.cooldown.type
+            s = '' if rate == 1 else 's'
+            await ctx.send(f'You can only give feedback {rate} time{s} per {humanize(per)}. Please wait another '
+                           f'`{error.retry_after:.2f}` seconds.')
         elif isinstance(error, commands.MissingPermissions):
             missing_perms = ' '.join([word.capitalize() for word in error.missing_perms[0].split('_')])
             await ctx.send(f':no_entry: '

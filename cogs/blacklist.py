@@ -1,30 +1,20 @@
 from discord.ext import commands 
 import discord 
 import time
-
-
-class Blacklisted(commands.CheckFailure):
-    pass
-    
-    
-def is_blacklisted(ctx):
-    if ctx.author.id in ctx.bot.blacklisted and ctx.author.id != 553058885418876928:
-        raise Blacklisted(f'{ctx.author} is blacklisted.')
-    return True 
+from cogs import utils
 
 
 class Blacklist(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.bot.Blacklisted = Blacklisted
+        self.bot.Blacklisted = utils.Blacklisted
         self.bot.loop.create_task(self.get_blacklisted())
         
     async def get_blacklisted(self):
         query = 'SELECT user_id FROM blacklisted'
         user_ids = [row['user_id'] for row in await self.bot.db.fetch(query)]
         self.bot.blacklisted = user_ids
-        self.bot.add_check(is_blacklisted)
     
     @commands.command(aliases=['bl'])
     @commands.is_owner()
