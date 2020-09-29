@@ -105,9 +105,10 @@ class Misc(commands.Cog):
         embed = discord.Embed(
             title=data['word'],
             url=data['permalink'],
-            description=data['definition'].replace('[', '').replace(']', ''),
+            description='**' + data['definition'].replace('[', '').replace(']', '') + '**',
             color=discord.Colour.blue()
         )
+        embed.add_field(name='\u200b', value=f'*{data["example"]}*'.replace('[', '').replace(']', ''), inline=False)
         embed.set_footer(text=f'By {data["author"]}')
         embed.add_field(name='\U0001f44d', value=str(data['thumbs_up']))
         embed.add_field(name='\U0001f44e', value=str(data['thumbs_down']))
