@@ -36,6 +36,8 @@ class Listeners(commands.Cog):
             s = '' if rate == 1 else 's'
             await ctx.send(f'You can only give feedback {rate} time{s} per {humanize(per)}. Please wait another '
                            f'`{error.retry_after:.2f}` seconds.')
+        elif isinstance(error, commands.MaxConcurrencyReached):
+            await ctx.send(f':no_entry: There is already a game taking place in this channel.')
         elif isinstance(error, commands.MissingPermissions):
             missing_perms = ' '.join([word.capitalize() for word in error.missing_perms[0].split('_')])
             await ctx.send(f':no_entry: '

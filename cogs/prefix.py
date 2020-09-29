@@ -20,5 +20,6 @@ prefixes = asyncio.get_event_loop().run_until_complete(_get_prefixes())
 
 
 def get_prefix(bot, message):
+    base = [f'<@{bot.user.id}> ', f'<@!{bot.user.id}> ']
     prefix = bot.prefixes.get(message.guild.id)
-    return _case(prefix) if prefix else ['ml!', 'ML!', 'Ml!']
+    return base + (_case(prefix) if prefix else ['ml!', 'ML!', 'Ml!'])

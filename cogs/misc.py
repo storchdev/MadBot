@@ -51,9 +51,6 @@ class Misc(commands.Cog):
 
     @commands.command(name='help', aliases=['cmds', 'commands'])
     async def _help(self, ctx):
-        if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
-            return await ctx.send('I need the `Embed Links` permission to display help.')
-
         embed = discord.Embed(
             title='MadLibs Commands List',
             description='Hello! I am a bot made by **Stormtorch#8984**! '
@@ -62,7 +59,7 @@ class Misc(commands.Cog):
             color=discord.Colour.blue() if ctx.me.color == discord.Colour.default() else ctx.me.color
         )
         embed.set_thumbnail(url=self.ICON)
-        p = ctx.prefix.lower()
+        p = self.bot.prefixes.get(ctx.guild.id).lower() or 'ml!'
 
         cmds = {
             f"\U0001f4ac | {p}**prefix**": 'Shows/changes the current server prefix',

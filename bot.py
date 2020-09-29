@@ -6,6 +6,7 @@ from db import db
 import discord
 import re
 
+
 COGS = (
     'cogs.listeners',
     'cogs.blacklist',
@@ -19,12 +20,14 @@ bot = commands.Bot(
     command_prefix=get_prefix,
     case_insensitive=True,
     activity=discord.Game('ml!help'),
-    help_command=None
+    help_command=None,
+    intents=discord.Intents.all()
 )
 bot.db = db
 bot.prefixes = prefixes
 bot.finder = re.compile('{(.+?)}')
 bot.Blacklisted = utils.Blacklisted
+bot.CannotEmbedLinks = utils.CannotEmbedLinks
 bot.blacklisted = []
 
 [bot.load_extension(cog) for cog in COGS]

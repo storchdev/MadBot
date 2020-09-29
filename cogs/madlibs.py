@@ -34,7 +34,6 @@ class MadLibs(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.in_game = []
         self.finder = self.bot.finder
 
         with open('./cogs/json/defaults.json') as f:
@@ -52,14 +51,8 @@ class MadLibs(commands.Cog):
                 count += 1
 
     @commands.command()
+    @commands.max_concurrency(1, commands.BucketType.channel)
     async def madlibs(self, ctx):
-
-        if ctx.channel.id in self.in_game:
-            return await ctx.send(f':no_entry: There is already a game taking place in this channel.')
-        if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
-            return await ctx.send(f':no_entry: I need the `Embed Links` permission start a game.')
-
-        self.in_game.append(ctx.channel.id)
         p = ctx.prefix.lower()
 
         query = 'SELECT name, template FROM madlibs WHERE guild_id = $1'
@@ -97,7 +90,6 @@ class MadLibs(commands.Cog):
                     if message.content.lower() == p + 'start':
                         break
                     else:
-                        self.in_game.remove(ctx.channel.id)
                         return await ctx.send(f':no_entry: The game has been canceled by the host.')
                 else:
                     participants.append(message.author)
@@ -119,7 +111,6 @@ class MadLibs(commands.Cog):
                 pass
 
         async def end():
-            self.in_game.remove(ctx.channel.id)
             await delete_menu()
             if not task.done():
                 task.cancel()
@@ -173,7 +164,6 @@ class MadLibs(commands.Cog):
                 user = participants[0]
             except IndexError:
                 task.cancel()
-                self.in_game.remove(ctx.channel.id)
                 return await ctx.send(f'Nobody is left in the game. It has been canceled.')
 
             opt = 'n' if is_vowel.match(blank) else ''
@@ -246,7 +236,6 @@ class MadLibs(commands.Cog):
         await message.edit(content=f'**{template_name}**\nBy {", ".join([user.mention for user in participants])}')
         for page in pages:
             await ctx.send(page)
-        self.in_game.remove(ctx.channel.id)
 
     @commands.group(invoke_without_command=True)
     async def custom(self, ctx):
