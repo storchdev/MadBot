@@ -10,7 +10,8 @@ class Config(commands.Cog):
     async def _prefix(self, ctx, new_prefix: str = ''):
 
         if not new_prefix:
-            current = ctx.prefix 
+            current = self.bot.prefixes.get(ctx.guild.id) or 'ml!'
+            current = current.lower().rstrip()
             return await ctx.send(f'The current prefix is `{current}`.')
 
         if not ctx.author.guild_permissions.manage_guild:

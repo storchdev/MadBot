@@ -32,7 +32,7 @@ class Listeners(commands.Cog):
         elif isinstance(error, self.bot.CannotEmbedLinks):
             await ctx.send(f':no_entry: I need the `Embed Links` permission to have all functionality!')
         elif isinstance(error, commands.CommandOnCooldown):
-            rate, per = error.cooldown.rate, error.cooldown.type
+            rate, per = error.cooldown.rate, error.cooldown.per
             s = '' if rate == 1 else 's'
             await ctx.send(f'You can only give feedback {rate} time{s} per {humanize(per)}. Please wait another '
                            f'`{error.retry_after:.2f}` seconds.')

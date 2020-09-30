@@ -2,6 +2,7 @@ from discord.ext import commands
 from datetime import datetime
 import discord
 import time
+from urllib.parse import quote
 
 
 class Misc(commands.Cog):
@@ -14,6 +15,8 @@ class Misc(commands.Cog):
                       'client_id=742921922370600991&permissions=19521&scope=bot'
         self.GITHUB = 'https://github.com/Stormtorch002/MadLibs'
         self.URBAN = 'https://api.urbandictionary.com/v0/define'
+        self.FOOTER_ICON = 'https://cdn.discordapp.com/icons/' \
+                           '336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
 
     @commands.command()
     @commands.cooldown(2, 60, commands.BucketType.user)
@@ -58,8 +61,7 @@ class Misc(commands.Cog):
                         'They may not contain every single command.',
             color=discord.Colour.blue() if ctx.me.color == discord.Colour.default() else ctx.me.color
         )
-        embed.set_thumbnail(url=self.ICON)
-        p = self.bot.prefixes.get(ctx.guild.id).lower() or 'ml!'
+        p = (self.bot.prefixes.get(ctx.guild.id) or 'ml!').lower()
 
         cmds = {
             f"\U0001f4ac | {p}**prefix**": 'Shows/changes the current server prefix',
@@ -80,7 +82,8 @@ class Misc(commands.Cog):
         )
         embed.set_footer(
             text=f'\U0001f40d discord.py v{discord.__version__}\n'
-                 'Thanks to redkid.net for the default templates!'
+                 'Thanks to redkid.net for the default templates!',
+            icon_url=self.FOOTER_ICON
         )
         await ctx.send(embed=embed)
 
@@ -90,9 +93,8 @@ class Misc(commands.Cog):
         if not term:
             return await ctx.send(f':no_entry: You need to provide a word to look up!')
         index = 0 if not index else index[0]
-        term = term.strip().replace(' ', '+')
 
-        async with self.bot.session.get(self.URBAN, params={'term': term}) as resp:
+        async with self.bot.session.get(self.URBAN, params={'term': quote(term)}) as resp:
             if resp.status != 200:
                 return await ctx.send(f':no_entry: `{resp.status}` Something went wrong...')
             data = await resp.json()
