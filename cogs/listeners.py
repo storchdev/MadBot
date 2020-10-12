@@ -1,7 +1,7 @@
 from discord.ext import commands
 import aiohttp
 import time
-from cogs.utils import humanize
+from humanize import precisedelta
 
 
 class Listeners(commands.Cog):
@@ -34,8 +34,8 @@ class Listeners(commands.Cog):
         elif isinstance(error, commands.CommandOnCooldown):
             rate, per = error.cooldown.rate, error.cooldown.per
             s = '' if rate == 1 else 's'
-            await ctx.send(f'You can only give feedback {rate} time{s} per {humanize(per)}. Please wait another '
-                           f'`{error.retry_after:.2f}` seconds.')
+            await ctx.send(f':no_entry: You can only use this command {rate} time{s} every {precisedelta(per)}. '
+                           f'Please wait another `{error.retry_after:.2f}` seconds.')
         elif isinstance(error, commands.MaxConcurrencyReached):
             await ctx.send(f':no_entry: There is already a game taking place in this channel.')
         elif isinstance(error, commands.MissingPermissions):

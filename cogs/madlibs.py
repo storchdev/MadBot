@@ -4,30 +4,11 @@ import time
 import asyncio
 import re
 import json
-from datetime import datetime
 from cogs import menus
+from cogs.utils import capitalize, readable
 
-splitter = re.compile('([.!?] *)')
 is_vowel = re.compile('^([aeiou])')
 cross_mark = '\U0000274c'
-OFFSET = 10800
-
-
-def readable(timestamp: int):
-    timestamp += OFFSET
-    dt = datetime.fromtimestamp(timestamp)
-    return dt.strftime('%m/%d/%Y at %I:%M:%S %p EST')
-
-
-def capitalize(text: str):
-    split = splitter.split(text)
-    final_story = []
-    for sentence in split:
-        if len(sentence) < 2:
-            final_story.append(sentence)
-        else:
-            final_story.append(sentence[0].upper() + sentence[1:])
-    return ''.join(final_story)
 
 
 class MadLibs(commands.Cog):

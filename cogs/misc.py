@@ -17,6 +17,7 @@ class Misc(commands.Cog):
         self.URBAN = 'https://api.urbandictionary.com/v0/define'
         self.FOOTER_ICON = 'https://cdn.discordapp.com/icons/' \
                            '336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
+        self.TOP_GG = 'https://top.gg/bot/742921922370600991/vote'
 
     @commands.command()
     @commands.cooldown(2, 60, commands.BucketType.user)
@@ -57,8 +58,8 @@ class Misc(commands.Cog):
         embed = discord.Embed(
             title='MadLibs Commands List',
             description='Hello! I am a bot made by **Stormtorch#8984**! '
-                        'Commands are listed below with brief descriptons. '
-                        'They may not contain every single command.',
+                        'Commands are listed below with brief descriptons.\n\n'
+                        f'**It would be greatly appreciated if you could vote for me [here]({self.TOP_GG})!',
             color=discord.Colour.blue() if ctx.me.color == discord.Colour.default() else ctx.me.color
         )
         p = (self.bot.prefixes.get(ctx.guild.id) or 'ml!').lower()
@@ -78,7 +79,8 @@ class Misc(commands.Cog):
         embed.add_field(
             name='\U0001f447 Other Links \U0001f448',
             value=f'\u2022 [**Source Code**]({self.GITHUB})\n'
-                  f'\u2022 [**Invite Me!**]({self.INVITE})'
+                  f'\u2022 [**Invite Me!**]({self.INVITE})\n'
+                  f'\u2022 [**Vote for Me!**]({self.TOP_GG})'
         )
         embed.set_footer(
             text=f'\U0001f40d discord.py v{discord.__version__}\n'

@@ -1,4 +1,10 @@
 from discord.ext import commands
+import re
+from datetime import datetime
+
+
+OFFSET = 10800
+splitter = re.compile('([.!?] *)')
 
 
 class CannotEmbedLinks(commands.BotMissingPermissions):
@@ -21,25 +27,18 @@ def embed_links(ctx):
     return True
 
 
-intervals = {
-    'weeks': 604800,
-    'days': 86400,
-    'hours': 3600,
-    'minutes': 60,
-    'seconds': 1
-}
+def readable(timestamp: int):
+    timestamp += OFFSET
+    dt = datetime.fromtimestamp(timestamp)
+    return dt.strftime('%m/%d/%Y at %I:%M:%S %p EST')
 
 
-def humanize(seconds: float):
-    seconds = int(seconds)
-    result = []
-
-    for name in intervals:
-        amount = intervals[name]
-        value = seconds // amount
-        if value:
-            seconds -= value * amount
-            if value == 1:
-                name = name.rstrip('s')
-            result.append(f'{value} {name}')
-    return ', '.join(result)
+def capitalize(text: str):
+    split = splitter.split(text)
+    final_story = []
+    for sentence in split:
+        if len(sentence) < 2:
+            final_story.append(sentence)
+        else:
+            final_story.append(sentence[0].upper() + sentence[1:])
+    return ''.join(final_story)

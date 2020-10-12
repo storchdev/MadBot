@@ -14,6 +14,7 @@ COGS = (
     'cogs.config',
     'cogs.speech',
     'cogs.misc',
+    'cogs.topgg',
     'jishaku'
 )
 bot = commands.Bot(
