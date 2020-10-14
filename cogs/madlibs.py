@@ -179,6 +179,7 @@ class MadLibs(commands.Cog):
                 await ctx.send(f'\u23f0 {user.mention} has been removed from the game due to inactivity.')
 
         task.cancel()
+        pids = [p.id for p in participants]
 
         query = 'UPDATE madlibs SET plays = plays + 1 WHERE guild_id = $1 AND name = $2'
         await self.bot.db.execute(query, ctx.guild.id, template_name)
@@ -187,7 +188,7 @@ class MadLibs(commands.Cog):
         await self.bot.db.execute(
             query,
             ctx.channel.id,
-            json.dumps([p.id for p in participants], indent=4),
+            json.dumps(pids, indent=4),
             final_story,
             int(time.time()),
             template_name,
@@ -201,14 +202,42 @@ class MadLibs(commands.Cog):
         for word in final_story.split():
             word += ' '
 
-            if len(word + embedded_story) > 2000:
+            if len(word + embedded_story) > 2048:
                 pages.append(embedded_story)
                 embedded_story = ''
             else:
                 embedded_story += word
         pages.append(embedded_story)
 
-        message = await ctx.send('Grand finale in **3...**')
+        send = False
+        if ctx.author.id in pids:
+            await ctx.send(f'{ctx.author.mention}: Would you like to send this play to my support server? '
+                           'I will not be sharing anything except your usernames and the final product.')
+
+            def check(m):
+                return m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
+
+            try:
+                confirm = await self.bot.wait_for('message', check=check, timeout=30)
+                if confirm.content.lower() in ('yes',):
+                    send = True
+            except asyncio.TimeoutError:
+                pass
+
+        if send:
+            ch = self.bot.get_channel(765759340405063680)
+            if len(final_story) > 2042:
+                final_story = final_story[:2041]
+            embed = discord.Embed(
+                title=template_name,
+                description=f'```{final_story}```',
+                color=discord.Colour.orange()
+            )
+            embed.add_field(name='Participants', value=', '.join(u.name for u in participants))
+            await ch.send(embed=embed)
+
+        s = 'Sent! ' if send else ''
+        message = await ctx.send(f'{s}Grand finale in **3...**')
         await asyncio.sleep(1)
         await message.edit(content='Grand finale in **2...**')
         await asyncio.sleep(1)

@@ -29,12 +29,16 @@ class Misc(commands.Cog):
         )
         embed.set_author(name=str(ctx.author), icon_url=str(ctx.author.avatar_url_as(format='png')))
         embed.set_footer(text=f'Guild ID: {ctx.guild.id}')
-        await self.bot.get_user(553058885418876928).send(embed=embed)
+        await self.bot.get_channel(765759417010225192).send(embed=embed)
         await ctx.send(':thumbsup: Your feedback has been sent!')
 
     @commands.command()
     async def invite(self, ctx):
         await ctx.send(f'**You can invite me here:**\n<{self.INVITE}>')
+
+    @commands.command()
+    async def support(self, ctx):
+        await ctx.send('https://discord.gg/fDjtZYW')
 
     @commands.command()
     async def ping(self, ctx):
