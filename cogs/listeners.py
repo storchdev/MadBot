@@ -2,6 +2,7 @@ from discord.ext import commands
 import aiohttp
 import time
 from humanize import precisedelta
+import discord
 
 
 class Listeners(commands.Cog):
@@ -9,16 +10,33 @@ class Listeners(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.bot.loop.create_task(self.on_ready())
+        self.support_id = 765757769575038986
+        self.supporter_role_id = 765764229104926741
 
     async def on_ready(self):
         await self.bot.wait_until_ready()
         print('Ready')
+        support = self.bot.get_guild(self.support_id)
+        for member in support.members:
+            if member.id in (owner.id for owner in (guild.owner for guild in self.bot.guilds)):
+                if self.supporter_role_id not in (role.id for role in member.roles):
+                    await member.add_roles(discord.Object(id=self.supporter_role_id))
         self.bot.up_at = time.time()
         self.bot.session = aiohttp.ClientSession()
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
+        support = self.bot.get_guild(self.support_id)
+        if guild.owner_id in (m.id for m in support.members):
+            member = support.guild.get_member(guild.owner_id)
+            await member.add_roles(discord.Object(id=self.supporter_role_id))
         await self.bot.get_user(553058885418876928).send(f'i have joined {guild.name}')
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        if member.guild.id == self.support_id:
+            if member.id in (owner.id for owner in (guild.owner for guild in self.bot.guilds)):
+                await member.add_roles(discord.Object(id=self.supporter_role_id))
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):

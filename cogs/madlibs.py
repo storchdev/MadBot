@@ -163,8 +163,8 @@ class MadLibs(commands.Cog):
 
                 if message.content.lower() == p + 'leave':
                     await ctx.send(f'{message.author.mention} has left the game.')
-                elif len(message.content) > 32:
-                    await ctx.send(f':no_entry: Your word must be 32 characters or under. Skipping your turn.')
+                elif len(message.content) > 100:
+                    await ctx.send(f':no_entry: Your word must be 100 characters or under. Skipping your turn.')
                     participants.append(message.author)
                 else:
                     participants.append(message.author)
