@@ -148,7 +148,8 @@ class MadLibs(commands.Cog):
                 return await ctx.send(f'Nobody is left in the game. It has been canceled.')
 
             opt = 'n' if is_vowel.match(blank) else ''
-            await ctx.send(f'{user.mention}, type out a{opt} **{blank}**. ({progress}/{total})')
+            hint = ' (NOT ENDING IN "ING")' if blank.lower() == 'verb' else ''
+            await ctx.send(f'{user.mention}, type out a{opt} **{blank}{hint}**. ({progress}/{total})')
 
             def check(m):
                 return m.channel.id == ctx.channel.id and m.author.id == user.id

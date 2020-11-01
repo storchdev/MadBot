@@ -3,7 +3,6 @@ import re
 from datetime import datetime
 
 
-OFFSET = 10800
 splitter = re.compile('([.!?] *)')
 
 
@@ -28,8 +27,7 @@ def embed_links(ctx):
 
 
 def readable(timestamp: int):
-    timestamp += OFFSET
-    dt = datetime.fromtimestamp(timestamp)
+    dt = datetime.utcfromtimestamp(timestamp - 18000)
     return dt.strftime('%m/%d/%Y at %I:%M:%S %p EST')
 
 

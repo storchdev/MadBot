@@ -7,6 +7,8 @@ import discord
 import re
 
 
+intents = discord.Intents.default()
+intents.members = True
 COGS = (
     'cogs.listeners',
     'cogs.blacklist',
@@ -22,7 +24,7 @@ bot = commands.Bot(
     case_insensitive=True,
     activity=discord.Game('ml!help'),
     help_command=None,
-    intents=discord.Intents.all()
+    intents=intents
 )
 bot.db = db
 bot.prefixes = prefixes

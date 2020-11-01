@@ -2,7 +2,8 @@ from discord.ext import commands
 from datetime import datetime
 import discord
 import time
-from urllib.parse import quote
+from urllib.parse import urlencode
+from humanize import precisedelta
 
 
 class Misc(commands.Cog):
@@ -41,6 +42,14 @@ class Misc(commands.Cog):
         await ctx.send('https://discord.gg/fDjtZYW')
 
     @commands.command()
+    async def about(self, ctx):
+        await ctx.send(f'Servers: `{len(self.bot.guilds)}`\n'
+                       f'Users: `{len(self.bot.users)}`\n'
+                       f'Uptime: {precisedelta(time.time() - self.bot.up_at)}\n'
+                       f'Channels: `{len(list(self.bot.get_all_channels()))}`\n'
+                       f'WS Ping: `{round(self.bot.latency * 1000)}ms`')
+
+    @commands.command()
     async def ping(self, ctx):
         websocket = round(self.bot.latency * 1000, 2)
         t1 = time.perf_counter()
@@ -63,28 +72,29 @@ class Misc(commands.Cog):
             title='MadLibs Commands List',
             description='Hello! I am a bot made by **Stormtorch#8984**! '
                         'Commands are listed below with brief descriptons.\n\n'
-                        f'**It would be greatly appreciated if you could vote for me [here]({self.TOP_GG})!',
+                        f'**It would be greatly appreciated if you could vote for me [here]({self.TOP_GG})!**',
             color=discord.Colour.blue() if ctx.me.color == discord.Colour.default() else ctx.me.color
         )
         p = (self.bot.prefixes.get(ctx.guild.id) or 'ml!').lower()
 
         cmds = {
             f"\U0001f4ac | {p}**prefix**": 'Shows/changes the current server prefix',
-            f"\U0001f517 | {p}**invite**": 'Sends my invite link!',
+            f"\U0001f517 | {p}**invite**": 'Bot invite link',
+            f"\U0001f3d3 | {p}**support**": "Support server invite link",
             f"\U0001f9e9 | {p}**madlibs**": 'Lets you host a MadLibs game',
             f"\U0001f602 | {p}**plays**": "Gets a play from the history of the server's laughable moments",
             f"\U0001f60e | {p}**custom**": 'Manages custom story templates',
             f"\U0001f4dd | {p}**feedback**": "Gives feedback about anything related to the bot",
-            f"\U0001f524 | {p}**pos**": "An aid to show info on the parts of speech",
-            f"\U0001f3d3 | {p}**ping**": "ponggers"
+            f"\U0001f524 | {p}**pos**": "An aid to show info on the parts of speech"
         }
 
         [embed.add_field(name=cmd, value=cmds[cmd]) for cmd in cmds]
         embed.add_field(
-            name='\U0001f447 Other Links \U0001f448',
-            value=f'\u2022 [**Source Code**]({self.GITHUB})\n'
+            name='\U0001f447 Other Links',
+            value=f'\u2022 [**Support Server!**](https://discord.gg/fDjtZYW)\n'
                   f'\u2022 [**Invite Me!**]({self.INVITE})\n'
-                  f'\u2022 [**Vote for Me!**]({self.TOP_GG})'
+                  f'\u2022 [**Vote for Me!**]({self.TOP_GG})\n'
+                  f'\u2022 [**Source Code**]({self.GITHUB})'
         )
         embed.set_footer(
             text=f'\U0001f40d discord.py v{discord.__version__}\n'
@@ -100,7 +110,7 @@ class Misc(commands.Cog):
             return await ctx.send(f':no_entry: You need to provide a word to look up!')
         index = 0 if not index else index[0]
 
-        async with self.bot.session.get(self.URBAN, params={'term': quote(term)}) as resp:
+        async with self.bot.session.get(self.URBAN + '?' + urlencode({'term': term})) as resp:
             if resp.status != 200:
                 return await ctx.send(f':no_entry: `{resp.status}` Something went wrong...')
             data = await resp.json()
@@ -122,11 +132,25 @@ class Misc(commands.Cog):
         embed.add_field(name='\U0001f44e', value=str(data['thumbs_down']))
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.group(invoke_without_command=True)
     @commands.is_owner()
-    async def sql(self, ctx, *, query):
+    async def sql(self, ctx):
+        pass
+
+    @sql.command()
+    @commands.is_owner()
+    async def execute(self, ctx, *, query):
         try:
             status = await self.bot.db.execute(query)
+        except Exception as error:
+            return await ctx.send(f'```diff\n- {error}```')
+        await ctx.send(f'```sql\n{status}```')
+
+    @sql.command()
+    @commands.is_owner()
+    async def select(self, ctx, *, query):
+        try:
+            rows = await self.bot.db.execute(query)
         except Exception as error:
             return await ctx.send(f'```diff\n- {error}```')
         await ctx.send(f'```sql\n{status}```')
