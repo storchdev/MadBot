@@ -223,7 +223,10 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
 
         for button in view.children:
             button.disabled = True
-        await view.message.edit(view=view)
+        try:
+            await view.message.edit(view=view)
+        except discord.NotFound:
+            pass
 
         pids = [p.id for p in participants]
 
