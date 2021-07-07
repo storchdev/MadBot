@@ -261,6 +261,7 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
                 f'{ctx.author.mention}, would you like to send this result to my support server? '
                 'I will not be sharing anything except your usernames and the final product.',
                 view=view)
+            await view.wait()
 
         message = await ctx.send(f'Grand finale in **3...**')
         await asyncio.sleep(1)
@@ -272,8 +273,8 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
         i = 0
         names = ", ".join([user.display_name for user in participants])
         for page in pages:
-            embed = discord.Embed(description=page)
-            embed.set_footer(text=names)
+            embed = discord.Embed(description=page, color=ctx.author.color)
+            embed.set_footer(text='By ' + names)
             if i == 0:
                 embed.title = template_name
             await message.edit(content=None, embed=embed)
@@ -419,7 +420,7 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
             embed.add_field(name='Creator', value=f'<@{row["creator_id"]}>\n(not in server)')
         else:
             embed.add_field(name='Creator', value=f'{user.mention}')
-            embed.set_author(name=str(user), icon_url=str(user.avatar_url_as(format='png')))
+            embed.set_author(name=str(user), icon_url=str(user.avatar.with_format(format='png')))
 
         blanks = self.finder.findall(row['template'])
         embed.add_field(name='Number of Blanks', value=f'**{len(blanks)}**')
