@@ -32,6 +32,10 @@ class Listeners(commands.Cog):
             return
         elif isinstance(error, self.bot.Blacklisted):
             return
+        elif isinstance(error, commands.MissingRequiredArgument):
+            usage = ctx.command.help.split('|')[1]
+            usage = f'{ctx.clean_prefix}{ctx.command.name} {usage}'
+            await ctx.send(f':no_entry: The correct usage is: `{usage}`')
         elif isinstance(error, commands.NotOwner):
             await ctx.send(f':no_entry: This command is restricted for the owner.')
         elif isinstance(error, self.bot.CannotEmbedLinks):
