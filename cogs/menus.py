@@ -135,7 +135,9 @@ class YesNo(discord.ui.View):
         return interaction.user == self.ctx.author
 
     async def on_timeout(self):
-        await self.message.delete()
+        for button in self.children:
+            button.disabled = True
+        await self.message.edit(view=self)
         self.stop()
 
     @discord.ui.button(label='Send!', style=discord.ButtonStyle.green)
