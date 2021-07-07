@@ -37,7 +37,7 @@ class HelpCommand(commands.HelpCommand):
         await self.context.send(embed=embed)
 
     async def send_cog_help(self, cog):
-        if cog.qualified_name not in ['top.gg', 'MadLibs', 'Misc']:
+        if cog.qualified_name not in ['top.gg', 'MadLibs', 'Misc', 'Config', 'Parts of Speech']:
             return await self.context.send(':no_entry: Cog not found.')
 
         prefix = self.context.clean_prefix
