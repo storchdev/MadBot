@@ -3,6 +3,7 @@ from discord.ext import commands
 
 icon_url = 'https://cdn.discordapp.com/icons/336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
 thumb_url = 'https://uploads-ssl.webflow.com/5ed7118d4bcece1f6a97f6d3/5ef3c514d38ff63fb4fe48c3_Mad%20Libs.png'
+allowed_cogs = ['top.gg', 'MadLibs', 'Misc', 'Config', 'Parts of Speech']
 
 
 class HelpCommand(commands.HelpCommand):
@@ -23,7 +24,7 @@ class HelpCommand(commands.HelpCommand):
         )
 
         for cog, cmds in mapping.items():
-            if cog is not None and cog.qualified_name in ['top.gg', 'MadLibs', 'Misc']:
+            if cog is not None and cog.qualified_name in allowed_cogs:
                 cmds = await self.filter_commands(cmds, sort=True)
                 cmds = '\n'.join([f'`{prefix}{cmd.name}`' for cmd in cmds])
                 embed.add_field(name=cog.qualified_name, value=cmds)
@@ -37,7 +38,7 @@ class HelpCommand(commands.HelpCommand):
         await self.context.send(embed=embed)
 
     async def send_cog_help(self, cog):
-        if cog.qualified_name not in ['top.gg', 'MadLibs', 'Misc', 'Config', 'Parts of Speech']:
+        if cog.qualified_name not in allowed_cogs:
             return await self.context.send(':no_entry: Cog not found.')
 
         prefix = self.context.clean_prefix
