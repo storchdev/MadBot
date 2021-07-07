@@ -8,7 +8,7 @@ class Config(commands.Cog, description='Admin-only server configuration commands
         
     @commands.command(name='prefix')
     @commands.has_permissions(manage_guild=True)
-    async def _prefix(self, ctx, new_prefix: str = ''):
+    async def _prefix(self, ctx, new_prefix=None):
 
         if not new_prefix:
             current = self.bot.prefixes.get(ctx.guild.id) or 'ml!'
