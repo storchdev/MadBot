@@ -61,6 +61,10 @@ class TemplatesMenu(ViewMenu):
         self.default_options = default_options
         self.custom_options = custom_options
         self.add_item(self.get_select())
+        for item in self.children:
+            if item.label == 'Cancel':
+                self.remove_item(item)
+                break
 
     def get_select(self):
         if self.embeds == self.default:

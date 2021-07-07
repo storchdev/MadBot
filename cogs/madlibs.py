@@ -17,6 +17,7 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
         self.bot = bot
         self.finder = self.bot.finder
         self.cancelled = {}
+        self.current_games = []
 
         with open('./cogs/json/defaults.json') as f:
             self.defaults = json.load(f)
@@ -45,11 +46,12 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
                 i += 1
 
     @commands.command()
-    @commands.max_concurrency(1, commands.BucketType.channel)
     async def madlibs(self, ctx):
         """Starts a MadLibs game with you as the host."""
-
+        if ctx.channel in self.current_games:
+            return await ctx.send(f':no_entry: There is already a game taking place in {ctx.channel.mention}.')
         self.cancelled[ctx] = False
+        self.current_games.append(ctx.channel)
         participants = [ctx.author]
 
         view = discord.ui.View(timeout=None)
@@ -57,6 +59,15 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
         button2 = discord.ui.Button(label='Leave Game', style=discord.ButtonStyle.red)
         button3 = discord.ui.Button(label='Start Game!', style=discord.ButtonStyle.blurple, row=2)
         button4 = discord.ui.Button(label='Cancel Game', style=discord.ButtonStyle.red, row=2)
+
+        async def cancel():
+            self.current_games.remove(ctx.channel)
+            for item in view.children:
+                item.disabled = True
+            try:
+                await view.message.edit(view=view)
+            except discord.NotFound:
+                pass
 
         async def join_callback(interaction):
             u = interaction.user
@@ -81,23 +92,24 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
             u = interaction.user
             if u != ctx.author:
                 return
-            self.bot.dispatch('game_start', u)
+            self.bot.dispatch('game_start', ctx.channel.id)
 
         async def cancel_callback(interaction):
             u = interaction.user
             if u != ctx.author:
                 return
             self.cancelled[ctx] = True
+            self.bot.dispatch('cancel', ctx.channel.id, 0)
             view.clear_items()
             await view.message.edit(view=view)
-            await ctx.send('I have cancelled the game.')
+            await ctx.send(':no_entry_sign: I have cancelled the game.')
 
         button.callback = join_callback
         button2.callback = leave_callback
         button3.callback = start_callback
         button4.callback = cancel_callback
 
-        for b in [button, button2, button3]:  # add button4 later maybe
+        for b in [button, button2, button3, button4]:  # add button4 later maybe
             view.add_item(b)
 
         embed = discord.Embed(
@@ -106,13 +118,21 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
             color=discord.Colour.green()
         )
         view.message = await ctx.send(embed=embed, view=view)
-        try:
-            await self.bot.wait_for('game_start', check=lambda u: u == ctx.author, timeout=180)
-            if self.cancelled[ctx]:
+
+        tasks = [
+            asyncio.ensure_future(self.bot.wait_for('game_start', check=lambda c: c == ctx.channel.id)),
+            asyncio.ensure_future(self.bot.wait_for('cancel', check=lambda c, z: c == ctx.channel.id))
+        ]
+        done, pending = await asyncio.wait(tasks, timeout=300, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+
+        if len(done) != 0:
+            res = done.pop().result()
+            if isinstance(res, tuple):
+                await cancel()
                 return
-        except asyncio.TimeoutError:
-            if self.cancelled[ctx]:
-                return
+        else:
             await ctx.send(f':alarm_clock: {ctx.author.mention} did not start the game, so I am doing it for them.')
 
         view.children[2].disabled = True
@@ -162,18 +182,34 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
             )
             customs.append(embed)
 
-        await ctx.send(embed=defaults[0],
-                       view=TemplatesMenu(
-                           ctx, defaults, customs, self.defaults_select, customs_select
-                       ))
+        select = await ctx.send(embed=defaults[0],
+                                view=TemplatesMenu(
+                                    ctx, defaults, customs, self.defaults_select, customs_select
+                                ))
 
         def check(u, n, t):
             return u == ctx.author
 
-        select = await self.bot.wait_for('select', check=check)
-        if self.cancelled[ctx]:
+        tasks = [
+            asyncio.ensure_future(self.bot.wait_for('select', check=check)),
+            asyncio.ensure_future(self.bot.wait_for('cancel', check=lambda c, z: c == ctx.channel.id))
+        ]
+        done, pending = await asyncio.wait(tasks, timeout=300, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+
+        if len(done) != 0:
+            res = done.pop().result()
+            if len(res) == 2:
+                await select.delete()
+                await cancel()
+                return
+        else:
+            await cancel()
+            await select.delete()
             return
 
+        select = res
         template_name = select[1]
         final_story = select[2]
         blanks = self.finder.findall(final_story)
@@ -186,6 +222,7 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
             try:
                 user = participants[0]
             except IndexError:
+                await cancel()
                 return await ctx.send(f'Nobody is left in the game. It has been canceled.')
 
             opt = 'n' if is_vowel.match(blank) else ''
@@ -195,38 +232,38 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
             def check(m):
                 return m.channel.id == ctx.channel.id and m.author.id == user.id
 
-            try:
-                message = await self.bot.wait_for('message', check=check, timeout=30)
-                if self.cancelled[ctx]:
+            tasks = [
+                asyncio.ensure_future(self.bot.wait_for('message', check=check)),
+                asyncio.ensure_future(self.bot.wait_for('cancel', check=lambda c, z: c == ctx.channel.id))
+            ]
+            done, pending = await asyncio.wait(tasks, timeout=45, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+
+            if len(done) != 0:
+                res = done.pop().result()
+                if isinstance(res, tuple):
+                    await cancel()
                     return
+
+                message = res
+
                 participants.pop(0)
+                participants.append(message.author)
 
                 if len(message.content) > 100:
                     await ctx.send(f':no_entry: Your word must be 100 characters or under. Skipping your turn.')
-                    participants.append(message.author)
                 else:
-                    participants.append(message.author)
                     final_story = final_story.replace(f'{{{blank}}}', message.content, 1)
-
                     if progress == total:
                         break
 
-                    progress += 1
-            except asyncio.TimeoutError:
-                if self.cancelled[ctx]:
-                    return
-                try:
-                    participants.remove(user)
-                    await ctx.send(f'\u23f0 {user.mention} has been removed from the game due to inactivity.')
-                except ValueError:
-                    continue
+                progress += 1
+            else:
+                participants.remove(user)
+                await ctx.send(f'\u23f0 {user.mention} has been removed from the game due to inactivity.')
 
-        for button in view.children:
-            button.disabled = True
-        try:
-            await view.message.edit(view=view)
-        except discord.NotFound:
-            pass
+        await cancel()
 
         pids = [p.id for p in participants]
 
