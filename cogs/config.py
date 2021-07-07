@@ -1,21 +1,19 @@
 from discord.ext import commands
 
 
-class Config(commands.Cog):
+class Config(commands.Cog, description='Admin-only server configuration commands.'):
     
     def __init__(self, bot):
         self.bot = bot
         
     @commands.command(name='prefix')
+    @commands.has_permissions(manage_guild=True)
     async def _prefix(self, ctx, new_prefix: str = ''):
 
         if not new_prefix:
             current = self.bot.prefixes.get(ctx.guild.id) or 'ml!'
             current = current.lower().rstrip()
             return await ctx.send(f'The current prefix is `{current}`.')
-
-        if not ctx.author.guild_permissions.manage_guild:
-            raise commands.MissingPermissions(['manage_guild'])
 
         prefix = new_prefix.lstrip()
         if len(prefix) > 16:
