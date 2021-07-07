@@ -44,7 +44,7 @@ class Listeners(commands.Cog):
         elif isinstance(error, commands.MaxConcurrencyReached):
             await ctx.send(f':no_entry: There is already a game taking place in this channel.')
         elif isinstance(error, commands.MissingPermissions):
-            missing_perms = ' '.join([word.capitalize() for word in error.missing_perms[0].split('_')])
+            missing_perms = ' '.join([word.capitalize() for word in error.missing_permissions[0].split('_')])
             await ctx.send(f':no_entry: '
                            f'You need the `{missing_perms}` permission to do `{ctx.prefix}{ctx.invoked_with}`.')
         else:
