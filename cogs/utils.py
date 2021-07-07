@@ -27,7 +27,7 @@ def embed_links(ctx):
 
 
 def readable(timestamp: int):
-    dt = datetime.utcfromtimestamp(timestamp - 18000)
+    dt = datetime.fromtimestamp(timestamp)
     return dt.strftime('%m/%d/%Y at %I:%M:%S %p EST')
 
 
