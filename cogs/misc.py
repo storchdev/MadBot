@@ -1,5 +1,4 @@
 from discord.ext import commands
-from datetime import datetime
 import discord
 import time
 from urllib.parse import urlencode
@@ -31,7 +30,7 @@ class Misc(commands.Cog, description='Other commands that are irrelevant from th
             description=f'`{user_feedback}`',
             color=ctx.author.color
         )
-        embed.set_author(name=str(ctx.author), icon_url=str(ctx.author.avatar_url_as(format='png')))
+        embed.set_author(name=str(ctx.author), icon_url=str(ctx.author.avatar.with_format(format='png')))
         embed.set_footer(text=f'Guild ID: {ctx.guild.id}')
         await self.bot.get_channel(765759417010225192).send(embed=embed)
         await ctx.send(':thumbsup: Your feedback has been sent!')
@@ -40,7 +39,7 @@ class Misc(commands.Cog, description='Other commands that are irrelevant from th
     async def invite(self, ctx):
         """Gives the link to invite the bot."""
 
-        await ctx.send(f'**You can invite me here:**\n<{self.INVITE}>')
+        await ctx.send(f'<{self.INVITE}>')
 
     @commands.command()
     async def support(self, ctx):
@@ -51,7 +50,7 @@ class Misc(commands.Cog, description='Other commands that are irrelevant from th
     @commands.command()
     async def about(self, ctx):
         """Gives some overall information of the bot's current state."""
-
+        
         await ctx.send(f'Servers: `{len(self.bot.guilds)}`\n'
                        f'Uptime: {precisedelta(time.time() - self.bot.up_at)}\n'
                        f'Channels: `{len(list(self.bot.get_all_channels()))}`\n'
@@ -72,9 +71,9 @@ class Misc(commands.Cog, description='Other commands that are irrelevant from th
         embed = discord.Embed(
             color=ctx.me.color
         )
-        embed.add_field(name='Websocket', value=f'`{websocket}ms`', inline=False)
-        embed.add_field(name='API', value=f'`{api}ms`', inline=False)
-        embed.add_field(name='Round Trip', value=f'`{rnd}ms`', inline=False)
+        embed.add_field(name='Websocket', value=f'`{websocket}ms`')
+        embed.add_field(name='API', value=f'`{api}ms`')
+        embed.add_field(name='Round Trip', value=f'`{rnd}ms`')
         await message.edit(content=None, embed=embed)
 
     @commands.command()
@@ -102,10 +101,10 @@ class Misc(commands.Cog, description='Other commands that are irrelevant from th
                 description='**' + entry['definition'].replace('[', '').replace(']', '') + '**',
                 color=ctx.author.color
             )
-            embed.add_field(name='\u200b', value=f'*{data["example"]}*'.replace('[', '').replace(']', ''), inline=False)
-            embed.set_footer(text=f'By {data["author"]}')
-            embed.add_field(name='\U0001f44d', value=str(data['thumbs_up']))
-            embed.add_field(name='\U0001f44e', value=str(data['thumbs_down']))
+            embed.add_field(name='\u200b', value=f'*{entry["example"]}*'.replace('[', '').replace(']', ''), inline=False)
+            embed.set_footer(text=f'By {entry["author"]}')
+            embed.add_field(name='\U0001f44d', value=str(entry['thumbs_up']))
+            embed.add_field(name='\U0001f44e', value=str(entry['thumbs_down']))
             embeds.append(embed)
 
         view = ViewMenu(ctx, embeds)
