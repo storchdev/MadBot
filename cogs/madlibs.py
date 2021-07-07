@@ -282,6 +282,7 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
 
     @commands.group(invoke_without_command=True)
     async def custom(self, ctx):
+        """Shows how to configure custom templates for this server."""
         p = ctx.prefix.lower()
         embed = discord.Embed(
             title='Custom Templates',

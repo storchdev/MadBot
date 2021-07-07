@@ -56,7 +56,11 @@ class HelpCommand(commands.HelpCommand):
         )
         cmds = await self.filter_commands(cog.get_commands(), sort=True)
         for cmd in cmds:
-            embed.add_field(name=prefix + cmd.name, value=cmd.help.split('|')[0])
+            try:
+                helpstr = cmd.help.split('|')[0]
+            except AttributeError:
+                continue
+            embed.add_field(name=prefix + cmd.name, value=helpstr)
         await self.context.send(embed=embed)
 
     def command_not_found(self, string):
@@ -70,7 +74,10 @@ class HelpCommand(commands.HelpCommand):
         prefix = self.context.clean_prefix
         embed = discord.Embed(colour=self.context.author.color)
         embed.title = f'{prefix}{command.qualified_name}'
-        h = command.help.split('|')
+        try:
+            h = command.help.split('|')
+        except AttributeError:
+            h = 'No help provided.'
         if len(h) > 1:
             help_text = h[0]
             usage = h[1]
