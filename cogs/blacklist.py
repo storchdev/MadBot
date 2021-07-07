@@ -19,6 +19,7 @@ class Blacklist(commands.Cog):
     @commands.command(aliases=['bl'])
     @commands.is_owner()
     async def blacklist(self, ctx, user: discord.User, *, reason):
+        """Blacklists a user.|<user> <reason>"""
         self.bot.blacklisted.append(user.id)
         query = 'INSERT INTO blacklisted (user_id, timestamp, reason) VALUES ($1, $2, $3)'
         await self.bot.db.execute(query, user.id, int(time.time()), reason)
@@ -27,6 +28,7 @@ class Blacklist(commands.Cog):
     @commands.command(aliases=['ubl'])
     @commands.is_owner()
     async def unblacklist(self, ctx, *, user: discord.User):
+        """Undoes the action on a blacklisted user.|<user>"""
         self.bot.blacklisted.remove(user.id)
         query = 'DELETE FROM blacklisted WHERE user_id = $1'
         await self.bot.db.execute(query, user.id)
