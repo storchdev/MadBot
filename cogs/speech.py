@@ -2,7 +2,8 @@ from discord.ext import commands
 import json
 
 
-class PartsOfSpeech(commands.Cog):
+class PartsOfSpeech(commands.Cog, name='Parts of Speech',
+                    description='In case you forgot to pay attention in English class.'):
 
     def __init__(self, bot):
         self.bot = bot
