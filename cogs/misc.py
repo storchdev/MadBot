@@ -78,10 +78,8 @@ class Misc(commands.Cog, description='Other commands that are irrelevant from th
 
     @commands.command()
     @commands.cooldown(2, 10, commands.BucketType.user)
-    async def urban(self, ctx, *, term=None):
+    async def urban(self, ctx, *, term):
         """Looks up a word in the urban dictionary|<word/term to look up>"""
-        if not term:
-            return await ctx.send(f':no_entry: You need to provide a word to look up!')
 
         async with self.bot.session.get(self.URBAN + '?' + urlencode({'term': term})) as resp:
             if resp.status != 200:
