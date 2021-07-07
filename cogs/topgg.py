@@ -3,7 +3,7 @@ from discord.ext import commands
 from config import TOPGG_API_TOKEN
 
 
-class TopGG(commands.Cog):
+class TopGG(commands.Cog, name='top.gg', description='Nothing much here. Just vote if you want.'):
 
     def __init__(self, bot):
         self.bot = bot
@@ -11,6 +11,8 @@ class TopGG(commands.Cog):
 
     @commands.command()
     async def vote(self, ctx):
+        """Sends the link to vote for the bot."""
+
         await ctx.send('https://top.gg/bot/742921922370600991/vote\n\n**Thanks for your support!**')
 
     @commands.Cog.listener()

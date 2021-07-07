@@ -8,8 +8,8 @@ import re
 
 
 intents = discord.Intents.default()
-intents.members = True
 COGS = (
+    'cogs.help',
     'cogs.listeners',
     'cogs.blacklist',
     'cogs.madlibs',
