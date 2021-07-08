@@ -21,9 +21,6 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
 
         with open('./cogs/json/defaults.json') as f:
             self.defaults = json.load(f)
-            self.lengths = {}
-            self.templates = {}
-            self.names = {}
             self.defaults_select = {0: {}}
             i = 1
             pages_len = 0
@@ -32,8 +29,6 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
             page = ''
             for name in self.defaults:
                 length = len(self.finder.findall(self.defaults[name]))
-                # self.templates[i] = self.defaults[name]
-                # self.names[i] = name
                 line = f'`{i}.` **{name}** ({length} blanks)\n'
                 self.defaults_select[pages_len][i] = (name, self.defaults[name])
                 page += line
@@ -44,6 +39,9 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
                     self.defaults_select[pages_len] = {}
 
                 i += 1
+
+            if page:
+                self.pages.append(page)
 
     @commands.command()
     async def madlibs(self, ctx):
@@ -173,6 +171,10 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
                 customs_select[pages_len] = {}
 
             i += 1
+
+        if page:
+            pages.append(page)
+
         i = 1
         for page in pages:
             embed = discord.Embed(
@@ -257,8 +259,7 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
                     final_story = final_story.replace(f'{{{blank}}}', message.content, 1)
                     if progress == total:
                         break
-
-                progress += 1
+                    progress += 1
             else:
                 participants.remove(user)
                 await ctx.send(f'\u23f0 {user.mention} has been removed from the game due to inactivity.')

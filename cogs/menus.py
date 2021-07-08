@@ -18,6 +18,8 @@ class ViewMenu(discord.ui.View):
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, label='\u23ee')
     async def beginning(self, button, interaction):
+        if len(self.embeds) == 0:
+            return
         if self.page == 0:
             return
         self.page = 0
@@ -25,6 +27,8 @@ class ViewMenu(discord.ui.View):
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, label='\u25c0')
     async def previous(self, button, interaction):
+        if len(self.embeds) == 0:
+            return
         if self.page == 0:
             return
         self.page -= 1
@@ -32,6 +36,8 @@ class ViewMenu(discord.ui.View):
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, label='\u25b6')
     async def next(self, button, interaction):
+        if len(self.embeds) == 0:
+            return
         if self.page == len(self.embeds) - 1:
             return
         self.page += 1
@@ -39,6 +45,8 @@ class ViewMenu(discord.ui.View):
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, label='\u23ed')
     async def end(self, button, interaction):
+        if len(self.embeds) == 0:
+            return
         if self.page == len(self.embeds) - 1:
             return
         self.page = len(self.embeds) - 1
@@ -62,15 +70,19 @@ class TemplatesMenu(ViewMenu):
         self.custom_options = custom_options
         self.add_item(self.get_select())
         for item in self.children:
-            if item.label == 'Cancel':
-                self.remove_item(item)
-                break
+            if isinstance(item, discord.ui.Button):
+                if item.label == 'Cancel':
+                    self.remove_item(item)
+                    break
 
     def get_select(self):
         if self.embeds == self.default:
             options = self.default_options[self.page]
         else:
-            options = self.custom_options[self.page]
+            try:
+                options = self.custom_options[self.page]
+            except KeyError:
+                return
 
         selectoptions = []
         for n, info in options.items():
@@ -105,7 +117,9 @@ class TemplatesMenu(ViewMenu):
             if isinstance(item, discord.ui.Select):
                 self.remove_item(item)
                 break
-        self.add_item(self.get_select())
+        select = self.get_select()
+        if select is not None:
+            self.add_item(select)
         await i.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label='Default Templates', style=discord.ButtonStyle.blurple, row=2)
