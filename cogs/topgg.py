@@ -1,6 +1,9 @@
 import dbl
-from discord.ext import commands
+from discord.ext import commands, tasks
 from config import TOPGG_API_TOKEN
+import datetime
+import discord
+from discord import app_commands as slash
 
 
 class TopGG(commands.Cog, name='top.gg', description='Nothing much here. Just vote if you want.'):
@@ -9,15 +12,26 @@ class TopGG(commands.Cog, name='top.gg', description='Nothing much here. Just vo
         self.bot = bot
         self.dblpy = dbl.DBLClient(self.bot, TOPGG_API_TOKEN, autopost=True)
 
-    @commands.command()
-    async def vote(self, ctx):
+    @slash.command()
+    async def vote(self, inter):
         """Sends the link to vote for the bot."""
 
-        await ctx.send('https://top.gg/bot/742921922370600991/vote\n\n**Thanks for your support!**')
+        await inter.response.send_message('https://top.gg/bot/742921922370600991/vote\n\n**Thanks for your support!**')
 
-    @commands.Cog.listener()
-    async def on_dbl_vote(self, data):
-        await self.bot.get_user(553058885418876928).send(data)
+    @tasks.loop(hours=1)
+    async def post_guild_count(self):
+        await self.dblpy.post_guild_count(len(self.bot.guilds))
+        print(f'Posted guild count to top.gg at {datetime.datetime.now().astimezone().strftime("%c")}')
+
+    @post_guild_count.before_loop
+    async def wait_until_hour(self):
+        now = datetime.datetime.now().astimezone()
+        next_run = now.replace(minute=0, second=0)
+
+        if next_run < now:
+            next_run += datetime.timedelta(hours=1)
+
+        await discord.utils.sleep_until(next_run)
 
 
 def setup(bot):

@@ -1,166 +1,80 @@
 from discord.ext import commands
+from discord import app_commands as slash
 import discord
 import time
 import asyncio
-import re
+from cogs.menus import TemplatesMenu, YesNo, ViewMenu
+from cogs.utils import capitalize, placeholder, vowel
+from cogs.dicts import pos_dict, defaults_dict
 import json
-from cogs.menus import TemplatesMenu, YesNo
-from cogs.utils import capitalize, readable
-
-is_vowel = re.compile('^([aeiou])')
-cross_mark = '\U0000274c'
 
 
-class MadLibs(commands.Cog, description='The main functionality of the bot. Play and customize games with friends!'):
+def generate_defaults():
+    defaults = defaults_dict
+    defaults_select = {0: {}}
+    i = 1
+    pages_len = 0
 
-    def __init__(self, bot):
-        self.bot = bot
-        self.finder = self.bot.finder
-        self.cancelled = {}
-        self.current_games = []
-
-        with open('./cogs/json/defaults.json') as f:
-            self.defaults = json.load(f)
-            self.defaults_select = {0: {}}
-            i = 1
-            pages_len = 0
-
-            self.pages = []
+    pages = []
+    page = ''
+    for name in defaults:
+        length = len(placeholder.findall(defaults[name]))
+        line = f'`{i}.` **{name}** ({length} blanks)\n'
+        defaults_select[pages_len][i] = (name, defaults[name])
+        page += line
+        if len(page) + len(line) > 500:
+            pages.append(page)
             page = ''
-            for name in self.defaults:
-                length = len(self.finder.findall(self.defaults[name]))
-                line = f'`{i}.` **{name}** ({length} blanks)\n'
-                self.defaults_select[pages_len][i] = (name, self.defaults[name])
-                page += line
-                if len(page) + len(line) > 500:
-                    self.pages.append(page)
-                    page = ''
-                    pages_len += 1
-                    self.defaults_select[pages_len] = {}
+            pages_len += 1
+            defaults_select[pages_len] = {}
 
-                i += 1
+        i += 1
 
-            if page:
-                self.pages.append(page)
+    if page:
+        pages.append(page)
 
-    @commands.command()
-    async def madlibs(self, ctx):
-        """Starts a MadLibs game with you as the host."""
-        if ctx.channel in self.current_games:
-            return await ctx.send(f':no_entry: There is already a game taking place in {ctx.channel.mention}.')
-        self.cancelled[ctx] = False
-        self.current_games.append(ctx.channel)
-        participants = [ctx.author]
+    i = 1
 
-        view = discord.ui.View(timeout=None)
-        button = discord.ui.Button(label='Join Game!', style=discord.ButtonStyle.green)
-        button2 = discord.ui.Button(label='Leave Game', style=discord.ButtonStyle.red)
-        button3 = discord.ui.Button(label='Start Game!', style=discord.ButtonStyle.blurple, row=2)
-        button4 = discord.ui.Button(label='Cancel Game', style=discord.ButtonStyle.red, row=2)
-
-        async def cancel():
-            self.current_games.remove(ctx.channel)
-            for item in view.children:
-                item.disabled = True
-            try:
-                await view.message.edit(view=view)
-            except discord.NotFound:
-                pass
-
-        async def join_callback(interaction):
-            u = interaction.user
-            if u not in participants:
-                participants.append(u)
-                await ctx.send(f':tada: {u.mention} has joined the game!')
-            else:
-                await ctx.send(f':no_entry: {u.mention}, you are already in the game.')
-
-        async def leave_callback(interaction):
-            u = interaction.user
-            if u in participants:
-                if u == ctx.author:
-                    await ctx.send(f':no_entry: {u.mention}, hosts cannot leave the game.')
-                else:
-                    participants.remove(u)
-                    await ctx.send(f':wave: {u.mention} has left the game.')
-            else:
-                await ctx.send(f':no_entry: {u.mention}, you are not in the game yet.')
-
-        async def start_callback(interaction):
-            u = interaction.user
-            if u != ctx.author:
-                return
-            self.bot.dispatch('game_start', ctx.channel.id)
-
-        async def cancel_callback(interaction):
-            u = interaction.user
-            if u != ctx.author:
-                return
-            self.cancelled[ctx] = True
-            self.bot.dispatch('cancel', ctx.channel.id, 0)
-            view.clear_items()
-            await view.message.edit(view=view)
-            await ctx.send(':no_entry_sign: I have cancelled the game.')
-
-        button.callback = join_callback
-        button2.callback = leave_callback
-        button3.callback = start_callback
-        button4.callback = cancel_callback
-
-        for b in [button, button2, button3, button4]:  # add button4 later maybe
-            view.add_item(b)
-
+    defaults = []
+    for page in pages:
         embed = discord.Embed(
-            title='A MadLibs game is starting in this channel!',
-            description=f"{ctx.author.mention}, start the game whenever you're ready.",
-            color=discord.Colour.green()
+            title=f'Default Templates - Page {i}/{len(pages)}',
+            color=discord.Colour.blurple(),
+            description=page
         )
-        view.message = await ctx.send(embed=embed, view=view)
+        defaults.append(embed)
+        i += 1
 
-        tasks = [
-            asyncio.ensure_future(self.bot.wait_for('game_start', check=lambda c: c == ctx.channel.id)),
-            asyncio.ensure_future(self.bot.wait_for('cancel', check=lambda c, z: c == ctx.channel.id))
-        ]
-        done, pending = await asyncio.wait(tasks, timeout=300, return_when=asyncio.FIRST_COMPLETED)
-        for task in pending:
-            task.cancel()
+    return defaults, defaults_select
 
-        if len(done) != 0:
-            res = done.pop().result()
-            if isinstance(res, tuple):
-                await cancel()
-                return
-        else:
-            await ctx.send(f':alarm_clock: {ctx.author.mention} did not start the game, so I am doing it for them.')
 
-        view.children[2].disabled = True
-        await view.message.edit(view=view)
+current_games = []
 
-        i = 1
-        defaults = []
-        for page in self.pages:
-            embed = discord.Embed(
-                title=f'Default Templates - Page {i}/{len(self.pages)}',
-                color=ctx.author.color,
-                description=page
-            )
-            defaults.append(embed)
-            i += 1
 
+class Game:
+    def __init__(self, interaction, main_view, task):
+        self.interaction = interaction
+        self.main_view = main_view
+        self.task = task
+        self.bot = self.interaction.client
+        self.story_view = None
+        self.channel_id = self.interaction.channel.id
+
+    async def create_story_view(self):
         customs = []
         customs_select = {0: {}}
         pages_len = 0
         i = 1
 
         query = 'SELECT name, template FROM madlibs WHERE guild_id = $1'
-        rows = await self.bot.db.fetch(query, ctx.guild.id)
+        rows = await self.bot.db.fetch(query, self.interaction.guild.id)
 
         pages = []
         page = ''
         for row in rows:
             name = row["name"]
             customs_select[pages_len][i] = (name, row['template'])
-            blanks = len(self.finder.findall(row['template']))
+            blanks = len(placeholder.findall(row['template']))
             line = f'`{i}.` **{name}** ({blanks} blanks)'
 
             page += line
@@ -179,433 +93,358 @@ class MadLibs(commands.Cog, description='The main functionality of the bot. Play
         for page in pages:
             embed = discord.Embed(
                 title=f'Custom Templates - Page {i}/{len(pages)}',
-                color=ctx.author.color,
+                color=self.interaction.user.color,
                 description=page
             )
             customs.append(embed)
 
-        select = await ctx.send(embed=defaults[0],
-                                view=TemplatesMenu(
-                                    ctx, defaults, customs, self.defaults_select, customs_select
-                                ))
+        defaults, defaults_select = generate_defaults()
+        self.story_view = TemplatesMenu(self.interaction, defaults, customs, defaults_select, customs_select)
+        self.story_view.message = await self.interaction.followup.send(embed=defaults[0], view=self.story_view)
+        return self.story_view
 
-        def check(u, n, t):
-            return u == ctx.author
+    async def cancel(self):
+        # if self.task:
+        #     self.task.cancel()
+        if self.channel_id in current_games:
+            current_games.remove(self.channel_id)
+        for item in self.main_view.children:
+            item.disabled = True
+        await self.main_view.message.edit(view=self.main_view)
 
-        tasks = [
-            asyncio.ensure_future(self.bot.wait_for('select', check=check)),
-            asyncio.ensure_future(self.bot.wait_for('cancel', check=lambda c, z: c == ctx.channel.id))
-        ]
-        done, pending = await asyncio.wait(tasks, timeout=300, return_when=asyncio.FIRST_COMPLETED)
-        for task in pending:
-            task.cancel()
 
-        if len(done) != 0:
-            res = done.pop().result()
-            if len(res) == 2:
-                await select.delete()
-                await cancel()
+class MadLibs(commands.Cog):
+
+    def __init__(self, bot):
+        self.bot = bot
+        self.speech = pos_dict
+
+    @slash.command()
+    async def madlibs(self, interaction):
+        """Starts a MadLibs game with you as the host."""
+        if not interaction.channel.permissions_for(interaction.guild.me).embed_links:
+            return await interaction.response.send_message(
+                f':no_entry: Ensure that I have the `Embed Links` permission in this channel.',
+                ephemeral=True
+            )
+        if any(game.interaction.channel == interaction.channel for game in current_games):
+            return await interaction.response.send_message(
+                f':no_entry: There is already a game taking place in {interaction.channel.mention}.',
+                ephemeral=True
+            )
+
+        participants = [interaction.user]
+        game = None
+        started = False
+
+        view = discord.ui.View(timeout=None)
+        button = discord.ui.Button(label='Join!', style=discord.ButtonStyle.green)
+        button2 = discord.ui.Button(label='Leave', style=discord.ButtonStyle.blurple)
+        button3 = discord.ui.Button(label='Start!', style=discord.ButtonStyle.blurple, row=2)
+        button4 = discord.ui.Button(label='Cancel', style=discord.ButtonStyle.red, row=2)
+
+        async def start():
+            story_view = await game.create_story_view()
+            await story_view.wait()
+            name, template = story_view.name, story_view.template
+
+            if not name:
+                await game.cancel()
+                await story_view.message.edit(
+                    f':alarm_clock: You spent too long selecting a story. Game canceled.',
+                    embed=None, view=None
+                )
                 return
-        else:
-            await cancel()
-            await select.delete()
-            return
 
-        select = res
-        template_name = select[1]
-        final_story = select[2]
-        blanks = self.finder.findall(final_story)
+            blanks = placeholder.findall(template)
 
-        progress = 1
-        total = len(blanks)
-        while True:
-            blank = blanks[progress - 1]
+            progress = 1
+            total = len(blanks)
+            while True:
+                blank = blanks[progress - 1]
 
-            try:
-                user = participants[0]
-            except IndexError:
-                await cancel()
-                return await ctx.send(f'Nobody is left in the game. It has been canceled.')
+                try:
+                    user = participants[0]
+                except IndexError:
+                    await game.cancel()
+                    return await interaction.channel.send(f':no_entry: Game was abandoned by all players.')
 
-            opt = 'n' if is_vowel.match(blank) else ''
-            hint = ' (NOT ENDING IN "ING")' if blank.lower() == 'verb' else ''
-            await ctx.send(f'{user.mention}, type out a{opt} **{blank}{hint}**. ({progress}/{total})')
+                n = 'n' if vowel.match(blank) else ''
+                hint = ' (NOT ENDING IN "ING")' if blank.lower() == 'verb' else ''
 
-            def check(m):
-                return m.channel.id == ctx.channel.id and m.author.id == user.id
+                view2 = discord.ui.View(timeout=45)
+                button = discord.ui.Button(label='\U0001f4ac', style=discord.ButtonStyle.blurple)
+                received = None
 
-            tasks = [
-                asyncio.ensure_future(self.bot.wait_for('message', check=check)),
-                asyncio.ensure_future(self.bot.wait_for('cancel', check=lambda c, z: c == ctx.channel.id))
-            ]
-            done, pending = await asyncio.wait(tasks, timeout=45, return_when=asyncio.FIRST_COMPLETED)
-            for task in pending:
-                task.cancel()
+                async def callback(word_i):
+                    print('1')
+                    ref = {
+                        'noun': 'A THING',
+                        'proper noun': 'A PERSON OR PLACE',
+                        'verb': 'A PLAIN ACTION',
+                        'verb ending in ING': 'AN ACTION ENDING IN "ING"',
+                        'verb (past tense)': 'AN ACTION THAT HAPPEN[ED] IN THE PAST',
+                        'adjective': 'A DESCRIBING WORD',
+                        'adverb': 'A WORD ENDING IN "LY"'
+                    }
+                    if word_i.user != user:
+                        return
+                    print('2')
+                    if blank.lower() in ref:
+                        ref = ref[blank.lower()]
+                    else:
+                        ref = '\u200b'
+                    print('4')
 
-            if len(done) != 0:
-                res = done.pop().result()
-                if isinstance(res, tuple):
-                    await cancel()
-                    return
+                    class Modal(discord.ui.Modal, title=f'Enter a{n} {blank}.'):
 
-                message = res
+                        word = discord.ui.TextInput(label=ref, max_length=69, style=discord.TextStyle.short)
 
-                participants.pop(0)
-                participants.append(message.author)
+                        async def on_submit(self, modal_i):
+                            nonlocal received
+                            if view2.is_finished():
+                                await modal_i.response.send_message(
+                                    ':no_entry: You were kicked from the game before submitting your word. '
+                                    'You may rejoin at any time.',
+                                    ephemeral=True
+                                )
+                                return
 
-                if len(message.content) > 100:
-                    await ctx.send(f':no_entry: Your word must be 100 characters or under. Skipping your turn.')
-                else:
-                    final_story = final_story.replace(f'{{{blank}}}', message.content, 1)
+                            received = str(self.word)
+                            view2.stop()
+                            await modal_i.response.send_message(f':thumbs_up: Received: `{received}`')
+
+                    modal = Modal()
+                    await word_i.response.send_modal(modal)
+                    print('5')
+
+                button.callback = callback
+                view2.add_item(button)
+                view2.message = await interaction.channel.send(
+                    f'{user.mention}, press the button to enter a{n} **{blank}{hint}**. ({progress}/{total})',
+                    view=view2
+                )
+
+                await view2.wait()
+                button.disabled = True
+                await view2.message.edit(view=view2)
+
+                if received:
+                    participants.pop(0)
+                    participants.append(user)
+
+                    template = template.replace(f'{{{blank}}}', received, 1)
                     if progress == total:
                         break
                     progress += 1
-            else:
-                participants.remove(user)
-                await ctx.send(f'\u23f0 {user.mention} has been removed from the game due to inactivity.')
+                else:
+                    participants.remove(user)
+                    await interaction.channel.send(
+                        f'\u23f0 {user.mention} has been removed from the game due to inactivity.'
+                    )
 
-        await cancel()
+            await game.cancel()
+            pids = [p.id for p in participants]
 
-        pids = [p.id for p in participants]
-
-        query = 'UPDATE madlibs SET plays = plays + 1 WHERE guild_id = $1 AND name = $2'
-        await self.bot.db.execute(query, ctx.guild.id, template_name)
-        query = 'INSERT INTO plays (channel_id, participants, final_story, played_at, name, guild_id) ' \
-                'VALUES ($1, $2, $3, $4, $5, $6)'
-        await self.bot.db.execute(
-            query,
-            ctx.channel.id,
-            json.dumps(pids, indent=4),
-            final_story,
-            int(time.time()),
-            template_name,
-            ctx.guild.id
-        )
-
-        embedded_story = ''
-        pages = []
-        final_story = capitalize(final_story)
-
-        for word in final_story.split():
-            word += ' '
-
-            if len(word + embedded_story) > 2048:
-                pages.append(embedded_story)
-                embedded_story = ''
-            else:
-                embedded_story += word
-        pages.append(embedded_story)
-
-        if ctx.author.id in pids:
-            view = YesNo(ctx, template_name, final_story, participants)
-            view.message = await ctx.send(
-                f'{ctx.author.mention}, would you like to send this result to my support server? '
-                'I will not be sharing anything except your usernames and the final product.',
-                view=view)
-            await view.wait()
-
-        message = await ctx.send(f'Grand finale in **3...**')
-        await asyncio.sleep(1)
-        await message.edit(content='Grand finale in **2...**')
-        await asyncio.sleep(1)
-        await message.edit(content='Grand finale in **1...**')
-        await asyncio.sleep(1)
-
-        i = 0
-        names = ", ".join([user.display_name for user in participants])
-        for page in pages:
-            embed = discord.Embed(description=page, color=ctx.author.color)
-            embed.set_footer(text='By ' + names)
-            if i == 0:
-                embed.title = template_name
-            await message.edit(content=None, embed=embed)
-            i += 1
-
-    @commands.group(invoke_without_command=True)
-    async def custom(self, ctx):
-        """Shows how to configure custom templates for this server."""
-        p = ctx.prefix.lower()
-        embed = discord.Embed(
-            title='Custom Templates',
-            description='Custom templates are a great way to customize your experience. '
-                        'If you have a MadLibs book, you can copy a story from there, or make your own!',
-            color=ctx.me.color
-        )
-        embed.add_field(
-            name=f'\U0001f6e0 {p}custom **add** *"<name>" <template>*',
-            value=f'Adds a custom template to the server. Example:\n'
-                  f'`{p}custom add "example" The {{noun}} is {{adjective}}.`'
-        )
-        embed.add_field(
-            name=f'\U0001f4e5 {p}custom **import** *<server ID> <name>*',
-            value='Imports a custom template from another server.'
-        )
-        embed.add_field(
-            name=f'\U0001f5d1 {p}custom **delete** *<name>*',
-            value='Deletes a custom template. You must have created it, or have `Manage Server` perms.'
-        )
-        embed.add_field(
-            name=f'\U0001f4dd {p}custom **edit** *"<name>" <new version>*',
-            value='Edits a custom template; requires same permissions as deleting.'
-        )
-        embed.add_field(
-            name=f'\U0001f50d {p}custom **info** *<name>*',
-            value='Gets info on a custom template.'
-        )
-        embed.add_field(
-            name=f'\U0001f4f0 {p}custom **all**',
-            value='Lists all custom templates'
-        )
-        await ctx.send(embed=embed)
-
-    @custom.command(name='add', aliases=['create'])
-    async def _add(self, ctx, name, *, template):
-        """Adds a new custom template to the server.|<template name> <template contents>"""
-
-        name = name.strip(' ')
-        if len(name) > 32:
-            return await ctx.send(f':no_entry: The name of the template must be 32 characters or under.')
-
-        template = template.strip(' ')
-
-        if not len(self.finder.findall(template)):
-            return await ctx.send(
-                f':no_entry: Make sure to include **at least one blank** in the template. '
-                'Blanks are placeholders marked with curly brackets, like `{noun}`.'
+            query = 'UPDATE madlibs SET plays = plays + 1 WHERE guild_id = $1 AND name = $2'
+            await self.bot.db.execute(query, interaction.guild.id, name)
+            query = 'INSERT INTO plays (channel_id, participants, final_story, played_at, name, guild_id) ' \
+                    'VALUES ($1, $2, $3, $4, $5, $6)'
+            await self.bot.db.execute(
+                query,
+                interaction.channel.id,
+                json.dumps(pids, indent=4),
+                template,
+                int(time.time()),
+                name,
+                interaction.guild.id
             )
 
-        query = 'SELECT id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        exists = await self.bot.db.fetchrow(query, name, ctx.guild.id)
+            embedded_story = ''
+            pages = []
+            final_story = capitalize(template)
 
-        if exists:
-            return await ctx.send(
-                f':no_entry: A custom template with name `{name}` already exists in this guild.'
-            )
+            for word in final_story.split():
+                word += ' '
 
-        query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
-                'VALUES ($1, $2, $3, $4, $5, $6)'
-        await self.bot.db.execute(query, name, template, ctx.guild.id, ctx.author.id, 0, int(time.time()))
-        await ctx.send(f':thumbsup: Successfully added custom story template with name `{name}`!')
+                if len(word + embedded_story) > 2048:
+                    pages.append(embedded_story)
+                    embedded_story = ''
+                else:
+                    embedded_story += word
+            pages.append(embedded_story)
 
-    @custom.command(name='delete', aliases=['remove', 'nize'])
-    async def _delete(self, ctx, *, name):
-        """Deletes an existing custom template from the server.|<template name>"""
+            if interaction.user.id in pids:
+                yesno = YesNo(interaction, name, final_story, participants)
+                yesno.message = await interaction.response.send_message(
+                    f'{interaction.user.mention}, would you like to send this result to my support server? '
+                    'I will not be sharing anything except your usernames and the final product.',
+                    view=yesno
+                )
+                await yesno.wait()
 
-        query = 'SELECT creator_id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        creator_id = await self.bot.db.fetchrow(query, name, ctx.guild.id)
+            i = 3
+            message = await interaction.channel.send(f'Grand finale in **3...**')
+            while i > 0:
+                i -= 1
+                await asyncio.sleep(1)
+                await message.edit(content=f'Grand finale in **{i}...**')
 
-        if creator_id:
-            creator_id = creator_id['creator_id']
+            await asyncio.sleep(1)
+            i = 0
+            names = ", ".join([user.display_name for user in participants])
+            for page in pages:
+                embed = discord.Embed(description=page, color=interaction.user.color)
+                embed.set_footer(text='By ' + names)
+                if i == 0:
+                    embed.title = name
+                await message.edit(content=None, embed=embed)
+                i += 1
 
-            if ctx.author.id != creator_id and not ctx.author.guild_permissions.manage_guild:
-                return await ctx.send(':no_entry: You are not authorized to delete this tag.')
+        async def join_callback(join_i):
+            u = join_i.user
+            if u not in participants:
+                participants.append(u)
+                await join_i.response.send_message(f':tada: {u.mention} has joined the game!')
+            else:
+                await join_i.response.send_message(
+                    f':no_entry: You are already in the game.',
+                    ephemeral=True
+                )
 
-            query = 'DELETE FROM madlibs WHERE name = $1 AND guild_id = $2'
-            await self.bot.db.execute(query, name, ctx.guild.id)
+        async def leave_callback(leave_i):
+            u = leave_i.user
+            if u not in participants:
+                return
 
-            await ctx.send(f':thumbsup: Successfully deleted custom story template {name}.')
-        else:
-            await ctx.send(f':no_entry: No custom template with name `{name}` found.')
+            if u == interaction.user:
+                await leave_i.response.send_message(
+                    f':no_entry: Hosts cannot leave the game.',
+                    ephemeral=True
+                )
+            else:
+                participants.remove(u)
+                await leave_i.response.send_message(f':wave: {u.mention} has left the game.')
 
-    @custom.command(name='edit')
-    async def _edit(self, ctx, name, *, edited):
-        """Edits an existing custom template.|<template name> <new contents>"""
+        async def start_callback(start_i):
+            nonlocal started
 
-        query = 'SELECT creator_id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        creator_id = await self.bot.db.fetchrow(query, name, ctx.guild.id)
+            u = start_i.user
+            if u != interaction.user:
+                return
 
-        if not creator_id:
-            return await ctx.send(f':no_entry: No custom template with name `{name}` found.')
+            started = True
+            button3.disabled = True
+            await view.message.edit(view=view)
+            await start_i.response.send_message(':thumbs_up: Cool. Please choose a story now.', ephemeral=True)
 
-        creator_id = creator_id['creator_id']
+            task = self.bot.loop.create_task(start())
+            game.task = task
 
-        if ctx.author.id != creator_id and not ctx.author.guild_permissions.manage_guild:
-            return await ctx.send(f':no_entry: You are not authorized to edit this tag.')
+        async def cancel_callback(cancel_i):
+            u = cancel_i.user
+            if u != interaction.user:
+                return
+            await game.cancel()
+            if game.task:
+                game.task.cancel()
 
-        query = 'UPDATE madlibs SET template = $1 WHERE name = $2 AND guild_id = $3'
-        await self.bot.db.execute(query, edited, name, ctx.guild.id)
-        await ctx.send(f':thumbsup: Successfully edited custom story template `{name}`.')
+            await cancel_i.response.send_message('Game canceled.', ephemeral=True)
 
-    @custom.command(name='all')
-    async def _all(self, ctx):
-        """Lists all the custom templates in the server."""
+        button.callback = join_callback
+        button2.callback = leave_callback
+        button3.callback = start_callback
+        button4.callback = cancel_callback
 
-        query = 'SELECT name FROM madlibs WHERE guild_id = $1'
-        rows = await self.bot.db.fetch(query, ctx.guild.id)
-
-        if not rows:
-            return await ctx.send(f':no_entry: No custom templates found in this guild.')
-
-        await ctx.send("**All Custom Templates:**\n\n" + '\n'.join(['`' + row['name'] + '`' for row in rows]))
-
-    @custom.command(name='info')
-    async def _info(self, ctx, *, name):
-        """Gets info on a custom template.|<template name>"""
-
-        if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
-            return await ctx.send(f':no_entry: I need the `Embed Links` permission to send info.')
-
-        query = 'SELECT template, creator_id, plays, created_at FROM madlibs WHERE guild_id = $1 AND name = $2'
-        row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
-
-        if not row:
-            return await ctx.send(f':no_entry: No template called `{name}` was found.')
+        for b in [button, button2, button3, button4]:
+            view.add_item(b)
 
         embed = discord.Embed(
-            title=name,
-            color=discord.Colour.blue()
+            title='A MadLibs game is starting!',
+            description='Click the green `Join` button to join in on the fun.',
+            color=discord.Colour.green()
         )
-        embed.add_field(name='Number of Plays', value=f'**{row["plays"]}**')
+        await interaction.response.send_message(
+            'Users have 5 minutes to join. Press the `Start` button when you are ready.',
+            ephemeral=True
+        )
 
-        user = ctx.guild.get_member(row['creator_id'])
-        if not user:
-            embed.add_field(name='Creator', value=f'<@{row["creator_id"]}>\n(not in server)')
-        else:
-            embed.add_field(name='Creator', value=f'{user.mention}')
-            embed.set_author(name=str(user), icon_url=str(user.avatar.with_format(format='png')))
+        view.message = await interaction.channel.send(embed=embed, view=view)
+        game = Game(interaction, view, task=None)
+        current_games.append(game.channel_id)
 
-        blanks = self.finder.findall(row['template'])
-        embed.add_field(name='Number of Blanks', value=f'**{len(blanks)}**')
+        await asyncio.sleep(300)
+        if not started:
+            await game.cancel()
+            await interaction.followup.send(
+                f':alarm_clock: {interaction.user.mention}\n'
+                f'5 minutes have passed and you have not started the game, so I have canceled it.'
+            )
 
-        if row['created_at']:
-            created_at = readable(row['created_at'])
-            embed.add_field(name='Created At', value=created_at)
-
-        if len(blanks) <= 1024:
-            embed.add_field(name='Blanks', value=', '.join(blanks))
-
-        await ctx.send(embed=embed)
-
-    @custom.command(name='import')
-    async def _import(self, ctx, guild_id: int, *, name):
-        """Imports a custom template from another guild. You will be the owner of it in this server.|
-        <server ID> <template name>"""
-
-        guild = self.bot.get_guild(guild_id)
-        if not guild:
-            return await ctx.send(f':no_entry: Could not find server with ID `{guild_id}`.')
-
-        query = 'SELECT template FROM madlibs WHERE guild_id = $1 AND name = $2'
-        row = await self.bot.db.fetchrow(query, guild_id, name)
-        if not row:
-            return await ctx.send(f":no_entry: The template with name `{name}` doesn't exist in that server.")
-
-        template = row['template']
-        row = await self.bot.db.fetchrow(query, ctx.guild.id, name)
-        if row:
-            return await ctx.send(f':no_entry: A template with the name `{name}` already exists.')
-
-        query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
-                'VALUES ($1, $2, $3, $4, $5, $6)'
-        await self.bot.db.execute(query, name, template, ctx.guild.id, ctx.author.id, 0, int(time.time()))
-        await ctx.send(f':thumbsup: Successfully imported **{name}** from `{guild.name}`!')
-
-    @commands.command(aliases=['history'])
-    async def plays(self, ctx, index: int, *, storyname=None):
-        """Fetches a completed MadLibs story from the history of this server.|
-        <index (1 for the latest)> <name of story>"""
+    @slash.command()
+    @slash.describe(storyname='The name of the template that was played')
+    async def history(self, interaction, storyname: str = None):
+        """Allows you to view all past games that have occured in this server."""
 
         if storyname:
             query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
                     'WHERE guild_id = $1 AND name = $2'
-            rows = await self.bot.db.fetch(query, ctx.guild.id, storyname)
+            rows = await self.bot.db.fetch(query, interaction.guild.id, storyname)
         else:
             query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
                     'WHERE guild_id = $1'
-            rows = await self.bot.db.fetch(query, ctx.guild.id)
+            rows = await self.bot.db.fetch(query, interaction.guild.id)
 
         if not rows:
-            return await ctx.send('No plays found.')
+            return await interaction.response.send_message(':no_entry: No past games found.')
 
-        try:
-            story = rows[-index]
-        except IndexError:
-            return await ctx.send(f':no_entry: Only `{len(rows)}` stories exist for that request.')
+        embeds = []
 
-        final_story = story['final_story']
-        if len(final_story) > 2048:
-            desc = final_story[:2044] + '...'
-        else:
-            desc = final_story
-
-        embed = discord.Embed(
-            title=story['name'],
-            description=desc,
-            color=discord.Colour.blue()
-        )
-        participants = []
-        for user_id in json.loads(story['participants']):
-            user = self.bot.get_user(user_id)
-            if user:
-                participants.append(user.mention)
+        for story in rows:
+            
+            final_story = story['final_story']
+            if len(final_story) > 2048:
+                desc = final_story[:2044] + '...'
             else:
-                participants.append(f'<@{user_id}>')
-        mentions = ', '.join(participants)
-        embed.add_field(name='Participants', value=mentions)
+                desc = final_story
 
-        ch = self.bot.get_channel(story['channel_id']).mention
-        if ch:
-            embed.add_field(name='Channel', value=ch)
-
-        played_at = readable(story['played_at'])
-        embed.add_field(name='Played At', value=played_at)
-        await ctx.send(embed=embed)
-
-    @_add.error
-    async def add_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(
-                f':no_entry: You must provide both a **name** and a **template** for this command.'
-                f'Usage: `{ctx.prefix}{ctx.invoked_with} "<name>" <template>`'
+            embed = discord.Embed(
+                title=story['name'],
+                description=desc,
+                color=discord.Colour.blue()
             )
-        else:
-            raise error
+            participants = []
+            for user_id in json.loads(story['participants']):
+                user = self.bot.get_user(user_id)
+                if user:
+                    participants.append(user.mention)
+                else:
+                    participants.append(f'<@{user_id}>')
+            mentions = ', '.join(participants)
+            embed.add_field(name='Participants', value=mentions)
 
-    @_edit.error
-    async def edit_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f':no_entry: '
-                           f'You must provide both a **name** and a **new template** for this command. '
-                           f'Usage: `{ctx.prefix}{ctx.invoked_with} "<name>" <new edited template>`')
-        else:
-            raise error
+            ch = self.bot.get_channel(story['channel_id']).mention
+            if ch:
+                embed.add_field(name='Channel', value=ch)
 
-    @_delete.error
-    async def delete_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f':no_entry: '
-                           f'You must provide the **name** of the template to delete for this command.')
-        else:
-            raise error
+            embed.add_field(name='Played At', value=f'<t:{story["played_at"]}:R>')
 
-    @_info.error
-    async def info_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f':no_entry: '
-                           f'You must provide the **name** of the template to view for this command.')
-        else:
-            raise error
+            embeds.append(embed)
 
-    @plays.error
-    async def plays_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument) or \
-                isinstance(error, commands.BadArgument):
-            await ctx.send(f':no_entry: '
-                           f'The correct usage is: `{ctx.prefix}plays <index> <template name>`.')
-        else:
-            raise error
+        view = ViewMenu(interaction, embeds, timeout=None)
+        view.message = await interaction.response.send_message(embed=embeds[0], view=view)
 
-    @_import.error
-    async def import_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send(f":no_entry: You must provide a valid server ID.")
-        elif isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f":no_entry: "
-                           f"You must provide a **server ID** and the **name of the template** "
-                           f"in that server for this command.")
-        else:
-            raise error
+    @slash.command()
+    @slash.describe(part='The part of speech (noun, adjective, etc) to lookup')
+    async def pos(self, interaction, part: str):
+        """Gives information on the main parts of speech, i.e. noun, adjective, verb, adverb."""
+
+        part = part.lower()
+        if part not in self.speech:
+            parts = ', '.join(f'`{p}`' for p in self.speech)
+            return await interaction.response.send_message(f'The available parts are: {parts}.')
+        await interaction.response.send_message(self.speech[part])
 
 
-def setup(bot):
-    bot.add_cog(MadLibs(bot))
+async def setup(bot):
+    await bot.add_cog(MadLibs(bot))

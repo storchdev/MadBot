@@ -1,25 +1,15 @@
 from config import POSTGRES_CONFIG
-import asyncio
 import asyncpg
 
 
-loop = asyncio.get_event_loop()
-
-
-async def _connect():
+async def connect():
     con = await asyncpg.create_pool(**POSTGRES_CONFIG)
+    await _create_tables(con)
     return con
 
-db = loop.run_until_complete(_connect())
 
-
-async def _create_tables():
+async def _create_tables(con):
     queries = [
-        '''CREATE TABLE IF NOT EXISTS prefixes (
-            "id" SERIAL PRIMARY KEY,
-            "guild_id" BIGINT UNIQUE,
-            "prefix" VARCHAR(16)
-        )''',
         '''CREATE TABLE IF NOT EXISTS plays (
             "id" SERIAL PRIMARY KEY,
             "channel_id" BIGINT,
@@ -37,16 +27,7 @@ async def _create_tables():
             "creator_id" BIGINT,
             "plays" BIGINT,
             "created_at" INTEGER
-        )''',
-        '''CREATE TABLE IF NOT EXISTS blacklisted (
-            "id" SERIAL PRIMARY KEY,
-            "user_id" BIGINT,
-            "timestamp" INTEGER,
-            "reason" VARCHAR(64)
         )'''
     ]
 
-    [await db.execute(query) for query in queries]
-
-
-loop.run_until_complete(_create_tables())
+    [await con.execute(query) for query in queries]

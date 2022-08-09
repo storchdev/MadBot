@@ -1,53 +1,56 @@
-from cogs.prefix import get_prefix, prefixes
 from cogs import utils
-from discord.ext import commands
 from config import TOKEN
-from db import db
+import db
 import discord
-import re
+from discord.ext import commands
+from cogs.utils import handle_error
+import time
+import aiohttp
+import asyncio
 
 
 intents = discord.Intents.default()
+intents.message_content = True
 COGS = (
-    'cogs.help',
     'cogs.listeners',
-    'cogs.blacklist',
     'cogs.madlibs',
-    'cogs.config',
-    'cogs.speech',
     'cogs.misc',
-    'cogs.topgg',
+    'cogs.custom',
     'jishaku'
 )
-bot = commands.Bot(
-    command_prefix=get_prefix,
-    case_insensitive=True,
-    activity=discord.Game('ml!help'),
-    help_command=None,
-    intents=intents
-)
-bot.db = db
-bot.prefixes = prefixes
-bot.finder = re.compile('{(.+?)}')
-bot.Blacklisted = utils.Blacklisted
-bot.CannotEmbedLinks = utils.CannotEmbedLinks
-bot.blacklisted = []
-
-[bot.load_extension(cog) for cog in COGS]
 
 
-@bot.event
-async def on_message(message):
-    if not message.guild or message.author.bot or message.author.id in bot.blacklisted:
-        return
-    if message.content in (f'<@{bot.user.id}>', f'<@!{bot.user.id}>'):
-        try:
-            msg = f':wave: Hello, a bot here. Do `{get_prefix(bot, message)[0]}help` to see my commands.'
-            await message.channel.send(msg)
-        except discord.Forbidden:
-            pass
-    await bot.process_commands(message)
+class Bot(commands.Bot):
 
+    def __init__(self):
+        super().__init__(
+            command_prefix='/',
+            intents=intents,
+            allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True)
+        )
+        self.owner_ids = [718475543061987329]
+        self.CannotEmbedLinks = utils.CannotEmbedLinks
+        self.handle_error = handle_error
+
+    async def setup_hook(self):
+        for cog in COGS:
+            await self.load_extension(cog)
+
+        self.up_at = time.time()
+        self.session = aiohttp.ClientSession()
+        self.owner = await self.fetch_user(self.owner_ids[0])
+        self.db = await db.connect()
+
+        print('Ready')
+
+
+bot = Bot()
+
+
+async def main():
+    async with bot:
+        await bot.start(TOKEN)
 
 if __name__ == '__main__':
-    bot.run(TOKEN)
+    asyncio.run(main())
+

@@ -1,34 +1,21 @@
 from discord.ext import commands
 import re
-from datetime import datetime
+from humanize import precisedelta
 
 
 splitter = re.compile('([.!?] *)')
+placeholder = re.compile('{(.+?)}')
+vowel = re.compile('^([aeiou])')
 
 
 class CannotEmbedLinks(commands.BotMissingPermissions):
     pass
 
 
-class Blacklisted(commands.CheckFailure):
-    pass
-
-
-def is_blacklisted(ctx):
-    if ctx.author.id in ctx.bot.blacklisted and ctx.author.id != 553058885418876928:
-        raise Blacklisted()
-    return True
-
-
 def embed_links(ctx):
     if not ctx.channel.permissions_for(ctx.me).embed_links:
         raise CannotEmbedLinks(['embed_links'])
     return True
-
-
-def readable(timestamp: int):
-    dt = datetime.fromtimestamp(timestamp)
-    return dt.strftime('%m/%d/%Y at %I:%M:%S %p EST')
 
 
 def capitalize(text: str):
@@ -40,3 +27,18 @@ def capitalize(text: str):
         else:
             final_story.append(sentence[0].upper() + sentence[1:])
     return ''.join(final_story)
+
+
+async def handle_error(ctx, error):
+
+    if isinstance(error, commands.CommandNotFound):
+        return
+    elif isinstance(error, commands.NotOwner):
+        await ctx.send(f':no_entry: This command is restricted for the owner.')
+    elif isinstance(error, ctx.bot.CannotEmbedLinks):
+        await ctx.send(f':no_entry: I need the `Embed Links` permission to be able to talk freely!')
+    elif isinstance(error, commands.CommandOnCooldown):
+        rate, per = error.cooldown.rate, error.cooldown.per
+        s = '' if rate == 1 else 's'
+        await ctx.send(f':no_entry: You can only use this command {rate} time{s} every {precisedelta(per)}. '
+                        f'Please wait another `{error.retry_after:.2f}` seconds.')
