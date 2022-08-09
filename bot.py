@@ -10,7 +10,6 @@ import asyncio
 
 
 intents = discord.Intents.default()
-intents.message_content = True
 COGS = (
     'cogs.listeners',
     'cogs.madlibs',
@@ -33,8 +32,12 @@ class Bot(commands.Bot):
         self.handle_error = handle_error
 
     async def setup_hook(self):
+        await self.tree.sync()
+        print('Synced commands')
+
         for cog in COGS:
             await self.load_extension(cog)
+            print(f'Loaded {cog}')
 
         self.up_at = time.time()
         self.session = aiohttp.ClientSession()
