@@ -41,7 +41,7 @@ async def send_bot_help(interaction):
             embed.add_field(name=cog, value=cmds)
 
     links = {
-        'Add MadLibs': 'https://discord.com/oauth2/authorize?client_id=742921922370600991&permissions=19521&scope=bot',
+        'Add MadLibs': 'https://discord.com/api/oauth2/authorize?client_id=742921922370600991&permissions=274877991936&scope=bot%20applications.commands',
         'Support': 'https://discord.gg/xFvqDVxjj2',
         'Vote': 'https://top.gg/bot/742921922370600991/vote',
         'Source': 'https://github.com/Stormtorch002/MadLibs'

@@ -1,5 +1,5 @@
 from discord.ext import commands
-from discord import app_commands as slash
+from discord import app_commands
 import discord
 import time
 import asyncio
@@ -7,26 +7,33 @@ from cogs.menus import TemplatesMenu, YesNo, ViewMenu
 from cogs.utils import capitalize, placeholder, vowel
 from cogs.dicts import pos_dict, defaults_dict
 import json
+import typing
 
 
-def generate_defaults():
-    defaults = defaults_dict
-    defaults_select = {0: {}}
+def generate_embeds(names, templates, *, default=True):
+    if default:
+        title = 'Default Templates'
+    else:
+        title = 'Custom Templates'
+
+    indices = {0: {}}
     i = 1
     pages_len = 0
 
     pages = []
     page = ''
-    for name in defaults:
-        length = len(placeholder.findall(defaults[name]))
+
+    for name, template in zip(names, templates):
+        length = len(placeholder.findall(template))
         line = f'`{i}.` **{name}** ({length} blanks)\n'
-        defaults_select[pages_len][i] = (name, defaults[name])
+        indices[pages_len][i] = (name, template)
         page += line
+
         if len(page) + len(line) > 500:
             pages.append(page)
             page = ''
             pages_len += 1
-            defaults_select[pages_len] = {}
+            indices[pages_len] = {}
 
         i += 1
 
@@ -35,17 +42,17 @@ def generate_defaults():
 
     i = 1
 
-    defaults = []
+    embeds = []
     for page in pages:
         embed = discord.Embed(
-            title=f'Default Templates - Page {i}/{len(pages)}',
+            title=f'{title} - Page {i}/{len(pages)}',
             color=discord.Colour.blurple(),
             description=page
         )
-        defaults.append(embed)
+        embeds.append(embed)
         i += 1
 
-    return defaults, defaults_select
+    return embeds, indices
 
 
 current_games = []
@@ -61,51 +68,21 @@ class Game:
         self.channel_id = self.interaction.channel.id
 
     async def create_story_view(self):
-        customs = []
-        customs_select = {0: {}}
-        pages_len = 0
-        i = 1
+        defaults, defaults_i = generate_embeds(defaults_dict.keys(), defaults_dict.values())
 
         query = 'SELECT name, template FROM madlibs WHERE guild_id = $1'
         rows = await self.bot.db.fetch(query, self.interaction.guild.id)
+        customs, customs_i = generate_embeds(
+            [row['name'] for row in rows],
+            [row['template'] for row in rows],
+            default=False
+        )
 
-        pages = []
-        page = ''
-        for row in rows:
-            name = row["name"]
-            customs_select[pages_len][i] = (name, row['template'])
-            blanks = len(placeholder.findall(row['template']))
-            line = f'`{i}.` **{name}** ({blanks} blanks)'
-
-            page += line
-            if len(page) + len(line) > 500:
-                pages.append(page)
-                page = ''
-                pages_len += 1
-                customs_select[pages_len] = {}
-
-            i += 1
-
-        if page:
-            pages.append(page)
-
-        i = 1
-        for page in pages:
-            embed = discord.Embed(
-                title=f'Custom Templates - Page {i}/{len(pages)}',
-                color=self.interaction.user.color,
-                description=page
-            )
-            customs.append(embed)
-
-        defaults, defaults_select = generate_defaults()
-        self.story_view = TemplatesMenu(self.interaction, defaults, customs, defaults_select, customs_select)
+        self.story_view = TemplatesMenu(self.interaction, defaults, customs, defaults_i, customs_i)
         self.story_view.message = await self.interaction.followup.send(embed=defaults[0], view=self.story_view)
         return self.story_view
 
     async def cancel(self):
-        # if self.task:
-        #     self.task.cancel()
         if self.channel_id in current_games:
             current_games.remove(self.channel_id)
         for item in self.main_view.children:
@@ -119,14 +96,10 @@ class MadLibs(commands.Cog):
         self.bot = bot
         self.speech = pos_dict
 
-    @slash.command()
+    @app_commands.command()
     async def madlibs(self, interaction):
         """Starts a MadLibs game with you as the host."""
-        if not interaction.channel.permissions_for(interaction.guild.me).embed_links:
-            return await interaction.response.send_message(
-                f':no_entry: Ensure that I have the `Embed Links` permission in this channel.',
-                ephemeral=True
-            )
+
         if any(game.interaction.channel == interaction.channel for game in current_games):
             return await interaction.response.send_message(
                 f':no_entry: There is already a game taking place in {interaction.channel.mention}.',
@@ -172,12 +145,11 @@ class MadLibs(commands.Cog):
                 n = 'n' if vowel.match(blank) else ''
                 hint = ' (NOT ENDING IN "ING")' if blank.lower() == 'verb' else ''
 
-                view2 = discord.ui.View(timeout=45)
-                button = discord.ui.Button(label='\U0001f4ac', style=discord.ButtonStyle.blurple)
+                dots = discord.ui.View(timeout=45)
+                dots_btn = discord.ui.Button(label='\U0001f4ac', style=discord.ButtonStyle.blurple)
                 received = None
 
                 async def callback(word_i):
-                    print('1')
                     ref = {
                         'noun': 'A THING',
                         'proper noun': 'A PERSON OR PLACE',
@@ -188,13 +160,11 @@ class MadLibs(commands.Cog):
                         'adverb': 'A WORD ENDING IN "LY"'
                     }
                     if word_i.user != user:
-                        return
-                    print('2')
+                        return await interaction.response.defer()
                     if blank.lower() in ref:
                         ref = ref[blank.lower()]
                     else:
                         ref = '\u200b'
-                    print('4')
 
                     class Modal(discord.ui.Modal, title=f'Enter a{n} {blank}.'):
 
@@ -202,7 +172,7 @@ class MadLibs(commands.Cog):
 
                         async def on_submit(self, modal_i):
                             nonlocal received
-                            if view2.is_finished():
+                            if dots.is_finished():
                                 await modal_i.response.send_message(
                                     ':no_entry: You were kicked from the game before submitting your word. '
                                     'You may rejoin at any time.',
@@ -211,23 +181,23 @@ class MadLibs(commands.Cog):
                                 return
 
                             received = str(self.word)
-                            view2.stop()
-                            await modal_i.response.send_message(f':thumbs_up: Received: `{received}`')
+                            dots.stop()
+                            await modal_i.response.send_message(
+                                f':thumbsup: {modal_i.user.mention} entered `{received}`'
+                            )
 
                     modal = Modal()
                     await word_i.response.send_modal(modal)
-                    print('5')
 
-                button.callback = callback
-                view2.add_item(button)
-                view2.message = await interaction.channel.send(
+                dots_btn.callback = callback
+                dots.add_item(dots_btn)
+                message = await interaction.channel.send(
                     f'{user.mention}, press the button to enter a{n} **{blank}{hint}**. ({progress}/{total})',
-                    view=view2
+                    view=dots
                 )
 
-                await view2.wait()
-                button.disabled = True
-                await view2.message.edit(view=view2)
+                await dots.wait()
+                await message.delete()
 
                 if received:
                     participants.pop(0)
@@ -240,7 +210,7 @@ class MadLibs(commands.Cog):
                 else:
                     participants.remove(user)
                     await interaction.channel.send(
-                        f'\u23f0 {user.mention} has been removed from the game due to inactivity.'
+                        f':wave: \u23f0 {user.mention} has been removed from the game due to inactivity.'
                     )
 
             await game.cancel()
@@ -276,7 +246,7 @@ class MadLibs(commands.Cog):
 
             if interaction.user.id in pids:
                 yesno = YesNo(interaction, name, final_story, participants)
-                yesno.message = await interaction.response.send_message(
+                yesno.message = await interaction.channel.send(
                     f'{interaction.user.mention}, would you like to send this result to my support server? '
                     'I will not be sharing anything except your usernames and the final product.',
                     view=yesno
@@ -284,11 +254,11 @@ class MadLibs(commands.Cog):
                 await yesno.wait()
 
             i = 3
-            message = await interaction.channel.send(f'Grand finale in **3...**')
+            message = await interaction.channel.send(f':tada: Grand finale in **3...** :tada:')
             while i > 0:
                 i -= 1
                 await asyncio.sleep(1)
-                await message.edit(content=f'Grand finale in **{i}...**')
+                await message.edit(content=f':tada: Grand finale in **{i}...** :tada:')
 
             await asyncio.sleep(1)
             i = 0
@@ -305,7 +275,7 @@ class MadLibs(commands.Cog):
             u = join_i.user
             if u not in participants:
                 participants.append(u)
-                await join_i.response.send_message(f':tada: {u.mention} has joined the game!')
+                await join_i.response.send_message(f':wave: {u.mention} has joined the game!')
             else:
                 await join_i.response.send_message(
                     f':no_entry: You are already in the game.',
@@ -315,28 +285,31 @@ class MadLibs(commands.Cog):
         async def leave_callback(leave_i):
             u = leave_i.user
             if u not in participants:
-                return
+                return await interaction.response.defer()
 
             if u == interaction.user:
-                await leave_i.response.send_message(
+                return await leave_i.response.send_message(
                     f':no_entry: Hosts cannot leave the game.',
                     ephemeral=True
                 )
-            else:
-                participants.remove(u)
-                await leave_i.response.send_message(f':wave: {u.mention} has left the game.')
+
+            participants.remove(u)
+            await leave_i.response.send_message(f':wave: {u.mention} has left the game.')
 
         async def start_callback(start_i):
             nonlocal started
 
             u = start_i.user
             if u != interaction.user:
-                return
+                return await interaction.response.defer()
 
             started = True
             button3.disabled = True
             await view.message.edit(view=view)
-            await start_i.response.send_message(':thumbs_up: Cool. Please choose a story now.', ephemeral=True)
+            await start_i.response.send_message(
+                ':thumbsup: Let\'s do this! Please choose a story now.',
+                ephemeral=True
+            )
 
             task = self.bot.loop.create_task(start())
             game.task = task
@@ -344,12 +317,12 @@ class MadLibs(commands.Cog):
         async def cancel_callback(cancel_i):
             u = cancel_i.user
             if u != interaction.user:
-                return
+                return await interaction.response.defer()
             await game.cancel()
             if game.task:
                 game.task.cancel()
 
-            await cancel_i.response.send_message('Game canceled.', ephemeral=True)
+            await cancel_i.response.send_message(':octagonal_sign: Game canceled.', ephemeral=True)
 
         button.callback = join_callback
         button2.callback = leave_callback
@@ -365,7 +338,7 @@ class MadLibs(commands.Cog):
             color=discord.Colour.green()
         )
         await interaction.response.send_message(
-            'Users have 5 minutes to join. Press the `Start` button when you are ready.',
+            'Other players have 5 minutes to join. Press the `Start` button when you are ready.',
             ephemeral=True
         )
 
@@ -375,14 +348,17 @@ class MadLibs(commands.Cog):
 
         await asyncio.sleep(300)
         if not started:
+            if game not in current_games:
+                return 
+                
             await game.cancel()
             await interaction.followup.send(
                 f':alarm_clock: {interaction.user.mention}\n'
                 f'5 minutes have passed and you have not started the game, so I have canceled it.'
             )
 
-    @slash.command()
-    @slash.describe(storyname='The name of the template that was played')
+    @app_commands.command()
+    @app_commands.describe(storyname='The name of the template that was played')
     async def history(self, interaction, storyname: str = None):
         """Allows you to view all past games that have occured in this server."""
 
@@ -401,7 +377,7 @@ class MadLibs(commands.Cog):
         embeds = []
 
         for story in rows:
-            
+
             final_story = story['final_story']
             if len(final_story) > 2048:
                 desc = final_story[:2044] + '...'
@@ -434,15 +410,10 @@ class MadLibs(commands.Cog):
         view = ViewMenu(interaction, embeds, timeout=None)
         view.message = await interaction.response.send_message(embed=embeds[0], view=view)
 
-    @slash.command()
-    @slash.describe(part='The part of speech (noun, adjective, etc) to lookup')
-    async def pos(self, interaction, part: str):
-        """Gives information on the main parts of speech, i.e. noun, adjective, verb, adverb."""
-
-        part = part.lower()
-        if part not in self.speech:
-            parts = ', '.join(f'`{p}`' for p in self.speech)
-            return await interaction.response.send_message(f'The available parts are: {parts}.')
+    @app_commands.command()
+    @app_commands.describe(part='The part of speech to lookup')
+    async def pos(self, interaction, part: typing.Literal["noun", "adjective", "verb", "adverb"]):
+        """Gives information on the main parts of speech"""
         await interaction.response.send_message(self.speech[part])
 
 

@@ -1,7 +1,7 @@
-from discord import app_commands as slash 
-import discord 
-from discord.ext import commands 
-import time 
+from discord import app_commands as slash
+import discord
+from discord.ext import commands
+import time
 from cogs.utils import placeholder
 
 
@@ -13,45 +13,52 @@ class Custom(commands.Cog):
     group = slash.Group(name='custom', description='Lets you manage custom-made templates in this server.')
 
     @group.command(name='add')
-    @slash.describe(
-        name='The name of the story',
-        template='The contents of the story with placeholders, i.e. {noun}'
-    )
-    async def custom_add(self, interaction, name: str, template: str):
-        """Adds a new custom template to the server."""
+    async def custom_add(self, interaction):
+        """Adds a new custom story template to the server."""
 
-        name = name.strip(' ')
-        if len(name) > 32:
-            return await interaction.response.send_message(
-                f':no_entry: The name of the template must be 32 characters or under.',
-                ephemeral=True
-            )
+        class Modal(discord.ui.Modal, title='Make a Cool Story'):
+            name = discord.ui.TextInput(label='Name of your story', max_length=32)
+            template = discord.ui.TextInput(label='Your story\'s template goes here', style=discord.TextStyle.long)
 
-        template = template.strip(' ')
+            async def on_submit(self, modal_inter):
+                bot = modal_inter.client
 
-        if not len(placeholder.findall(template)):
-            return await interaction.response.send_message(
-                f':no_entry: Make sure to include **at least one blank** in the template. '
-                'Blanks are placeholders marked with curly brackets, like `{noun}`.',
-                ephemeral=True
-            )
+                name = str(self.name)
+                template = str(self.template)
 
-        query = 'SELECT id FROM madlibs WHERE name = $1 AND guild_id = $2'
-        exists = await self.bot.db.fetchrow(query, name, interaction.guild.id)
+                if not len(placeholder.findall(template)):
+                    return await modal_inter.response.send_message(
+                        f':no_entry: Make sure to include **at least one blank** in the template. '
+                        'Blanks are placeholders marked with curly brackets, like `{noun}`.',
+                        ephemeral=True
+                    )
 
-        if exists:
-            return await interaction.response.send_message(
-                f':no_entry: A custom template with name `{name}` already exists in this guild.',
-                ephemeral=True
-            )
+                query = 'SELECT id FROM madlibs WHERE name = $1 AND guild_id = $2'
+                exists = await bot.db.fetchrow(query, name, interaction.guild.id)
 
-        query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
-                'VALUES ($1, $2, $3, $4, $5, $6)'
-        await self.bot.db.execute(query, name, template, interaction.guild.id, interaction.user.id, 0, int(time.time()))
-        await interaction.response.send_message(
-            f':thumbsup: Successfully added custom story template with name `{name}`!',
-            ephemeral=True
-        )
+                if exists:
+                    return await modal_inter.response.send_message(
+                        f':no_entry: A custom template with name `{name}` already exists in this guild.',
+                        ephemeral=True
+                    )
+
+                query = 'INSERT INTO madlibs (name, template, guild_id, creator_id, plays, created_at) ' \
+                        'VALUES ($1, $2, $3, $4, $5, $6)'
+                await bot.db.execute(
+                    query,
+                    name,
+                    template,
+                    interaction.guild.id,
+                    interaction.user.id,
+                    0,
+                    int(time.time())
+                )
+                await modal_inter.response.send_message(
+                    f':thumbsup: Successfully added custom story template with name `{name}`!',
+                    ephemeral=True
+                )
+
+        await interaction.response.send_modal(Modal())
 
     @group.command(name='delete')
     @slash.describe(name='The name of the story to delete')
@@ -85,12 +92,11 @@ class Custom(commands.Cog):
 
     @group.command(name='edit')
     @slash.describe(
-        name='The name of the story to edit',
-        edited='The new edited version of the story'
+        name='The name of the story to edit'
     )
-    async def custom_edit(self, interaction, name: str, edited: str):
+    async def custom_edit(self, interaction, name: str):
         """Edits an existing custom template."""
-        
+
         query = 'SELECT creator_id FROM madlibs WHERE name = $1 AND guild_id = $2'
         creator_id = await self.bot.db.fetchrow(query, name, interaction.guild.id)
 
@@ -108,20 +114,28 @@ class Custom(commands.Cog):
                 ephemeral=True
             )
 
-        template = edited.strip(' ')
-        if not len(placeholder.findall(template)):
-            return await interaction.response.send_message(
-                f':no_entry: Make sure to include **at least one blank** in the template. '
-                'Blanks are placeholders marked with curly brackets, like `{noun}`.',
-                ephemeral=True
-            )
+        class Modal(discord.ui.Modal, title=f'Edit a Cool Story'):
+            edited = discord.ui.TextInput(label=f'Edited version of "{name}" goes here', style=discord.TextStyle.long)
 
-        query = 'UPDATE madlibs SET template = $1 WHERE name = $2 AND guild_id = $3'
-        await self.bot.db.execute(query, edited, name, interaction.guild.id)
-        await interaction.response.send_message(
-            f':thumbsup: Successfully edited custom story template `{name}`.',
-            ephemeral=True
-        )
+            async def on_submit(self, modal_inter):
+                bot = modal_inter.client
+                edited = str(self.edited)
+
+                if not len(placeholder.findall(edited)):
+                    return await modal_inter.response.send_message(
+                        f':no_entry: Make sure to include **at least one blank** in the template. '
+                        'Blanks are placeholders marked with curly brackets, like `{noun}`.',
+                        ephemeral=True
+                    )
+
+                query = 'UPDATE madlibs SET template = $1 WHERE name = $2 AND guild_id = $3'
+                await bot.db.execute(query, edited, name, interaction.guild.id)
+                await modal_inter.response.send_message(
+                    f':thumbsup: Successfully edited custom story template `{name}`.',
+                    ephemeral=True
+                )
+
+        await interaction.response.send_modal(Modal())
 
     @group.command(name='list')
     async def custom_list(self, interaction):
@@ -145,6 +159,8 @@ class Custom(commands.Cog):
             title=f'User-Created Stories in {interaction.guild.name}',
             color=interaction.user.color,
             description=text
+        ).set_footer(
+            text=f'Do `/custom info` to see more details on a particular one'
         )
         await interaction.response.send_message(
             embed=embed

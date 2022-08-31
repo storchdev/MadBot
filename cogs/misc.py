@@ -1,9 +1,8 @@
 from discord.ext import commands
-from discord import app_commands as slash
+from discord import app_commands
 import discord
 import time
 from urllib.parse import urlencode
-from humanize import precisedelta
 from cogs.menus import ViewMenu
 from cogs.help import send_bot_help
 
@@ -12,25 +11,22 @@ class Misc(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.ICON = 'https://media.discordapp.net/attachments/' \
-                    '742973400636588056/745710912257916950/159607234227809532.png'
-        self.INVITE = 'https://discord.com/oauth2/authorize?' \
-                      'client_id=742921922370600991&permissions=19521&scope=bot'
+        self.ICON = 'https://media.discordapp.net/attachments/742973400636588056/745710912257916950/159607234227809532.png'
+        self.INVITE = 'https://discord.com/api/oauth2/authorize?client_id=742921922370600991&permissions=274877991936&scope=bot%20applications.commands'
         self.GITHUB = 'https://github.com/Stormtorch002/MadLibs'
         self.URBAN = 'https://api.urbandictionary.com/v0/define'
-        self.FOOTER_ICON = 'https://cdn.discordapp.com/icons/' \
-                           '336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
+        self.FOOTER_ICON = 'https://cdn.discordapp.com/icons/336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
         self.TOP_GG = 'https://top.gg/bot/742921922370600991/vote'
         self.cooldowns = []
 
-    @slash.command(name='help')
+    @app_commands.command(name='help')
     async def help_command(self, interaction):
         """Shows all the commands."""
         await send_bot_help(interaction)
 
-    @slash.command()
-    @slash.describe(feedback='the feedback to send')
-    @slash.checks.cooldown(2, 60)
+    @app_commands.command()
+    @app_commands.describe(feedback='the feedback to send')
+    @app_commands.checks.cooldown(2, 60)
     async def feedback(self, interaction, feedback: str):
         """Gives feedback to the dev."""
 
@@ -44,19 +40,19 @@ class Misc(commands.Cog):
         await self.bot.get_channel(765759417010225192).send(embed=embed)
         await interaction.response.send_message(':thumbsup: Your feedback has been sent!')
 
-    @slash.command()
+    @app_commands.command()
     async def invite(self, interaction):
         """Gives the link to invite the bot."""
 
         await interaction.send(f'<{self.INVITE}>')
 
-    @slash.command()
+    @app_commands.command()
     async def support(self, interaction):
         """Gives the link to the support server."""
 
         await interaction.response.send_message('https://discord.gg/fDjtZYW')
 
-    @slash.command()
+    @app_commands.command()
     async def about(self, interaction):
         """Gives some overall information of the bot's current state."""
 
@@ -83,8 +79,8 @@ class Misc(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @slash.command()
-    @slash.checks.cooldown(1, 10)
+    @app_commands.command()
+    @app_commands.checks.cooldown(1, 10)
     async def ping(self, interaction):
         """Gives the WS and API latency of the bot."""
 
@@ -98,11 +94,11 @@ class Misc(commands.Cog):
         )
         embed.add_field(name='Websocket', value=f'`{websocket}ms`')
         embed.add_field(name='API', value=f'`{api}ms`')
-        await interaction.edit_original_message(content=None, embed=embed)
+        await interaction.edit_original_response(content=None, embed=embed)
 
-    @slash.command()
-    @slash.describe(word='the search term to look up')
-    @slash.checks.cooldown(2, 10)
+    @app_commands.command()
+    @app_commands.describe(word='the search term to look up')
+    @app_commands.checks.cooldown(2, 10)
     async def urban(self, interaction, word: str):
         """Looks up a word in the urban dictionary"""
 

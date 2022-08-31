@@ -1,13 +1,14 @@
-from cogs import utils
 from config import TOKEN
 import db
 import discord
 from discord.ext import commands
-from cogs.utils import handle_error
 import time
 import aiohttp
 import asyncio
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
 
 intents = discord.Intents.default()
 COGS = (
@@ -19,7 +20,7 @@ COGS = (
 )
 
 
-class Bot(commands.Bot):
+class MadLibsBot(commands.Bot):
 
     def __init__(self):
         super().__init__(
@@ -28,12 +29,8 @@ class Bot(commands.Bot):
             allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True)
         )
         self.owner_ids = [718475543061987329]
-        self.CannotEmbedLinks = utils.CannotEmbedLinks
-        self.handle_error = handle_error
 
     async def setup_hook(self):
-        await self.tree.sync()
-        print('Synced commands')
 
         for cog in COGS:
             await self.load_extension(cog)
@@ -47,7 +44,27 @@ class Bot(commands.Bot):
         print('Ready')
 
 
-bot = Bot()
+bot = MadLibsBot()
+
+
+async def inter_check(interaction):
+    if not interaction.channel.permissions_for(interaction.guild.me).embed_links:
+        await interaction.response.send_message(
+            f':no_entry: Ensure that I have the `Embed Links` permission in this channel.',
+            ephemeral=True
+        )
+        return False
+
+    return True
+bot.tree.interaction_check = inter_check
+
+
+@commands.dm_only()
+@commands.is_owner()
+@bot.command()
+async def sync(ctx):
+    await bot.tree.sync()
+    await ctx.message.add_reaction('\u2705')
 
 
 async def main():

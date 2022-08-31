@@ -1,5 +1,5 @@
-git+https://github.com/Rapptz/discord.py
-git+https://github.com/Gorialis/jishaku
+discord.py
+jishaku
 asyncpg
 humanize
 dblpy

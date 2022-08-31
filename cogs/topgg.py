@@ -3,7 +3,7 @@ from discord.ext import commands, tasks
 from config import TOPGG_API_TOKEN
 import datetime
 import discord
-from discord import app_commands as slash
+from discord import app_commands
 
 
 class TopGG(commands.Cog, name='top.gg', description='Nothing much here. Just vote if you want.'):
@@ -12,7 +12,7 @@ class TopGG(commands.Cog, name='top.gg', description='Nothing much here. Just vo
         self.bot = bot
         self.dblpy = dbl.DBLClient(self.bot, TOPGG_API_TOKEN, autopost=True)
 
-    @slash.command()
+    @app_commands.command()
     async def vote(self, inter):
         """Sends the link to vote for the bot."""
 
