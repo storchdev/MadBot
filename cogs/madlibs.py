@@ -159,7 +159,7 @@ class MadLibs(commands.Cog):
                         'adverb': 'A WORD ENDING IN "LY"'
                     }
                     if word_i.user != user:
-                        return await interaction.response.defer()
+                        return await word_i.response.defer()
                     if blank.lower() in ref:
                         ref = ref[blank.lower()]
                     else:
