@@ -154,13 +154,14 @@ class Custom(commands.Cog):
             if len(text + line) > 2048:
                 break
             text += line
+            i += 1
 
         embed = discord.Embed(
             title=f'User-Created Stories in {interaction.guild.name}',
             color=interaction.user.color,
             description=text
         ).set_footer(
-            text=f'Do `/custom info` to see more details on a particular one'
+            text=f'Do "/custom info" to see more details on a particular one'
         )
         await interaction.response.send_message(
             embed=embed

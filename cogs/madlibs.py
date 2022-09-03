@@ -83,10 +83,9 @@ class Game:
         return self.story_view
 
     async def cancel(self):
-        if self.channel_id in current_games:
-            current_games.remove(self.channel_id)
-        for item in self.main_view.children:
-            item.disabled = True
+        if self in current_games:
+            current_games.remove(self)
+        self.main_view.clear_items()
         await self.main_view.message.edit(view=self.main_view)
 
 
@@ -304,7 +303,7 @@ class MadLibs(commands.Cog):
                 return await interaction.response.defer()
 
             started = True
-            button3.disabled = True
+            view.remove_item(button3)
             await view.message.edit(view=view)
             await start_i.response.send_message(
                 ':thumbsup: Let\'s do this! Please choose a story now.',
@@ -344,7 +343,7 @@ class MadLibs(commands.Cog):
 
         view.message = await interaction.channel.send(embed=embed, view=view)
         game = Game(interaction, view, task=None)
-        current_games.append(game.channel_id)
+        current_games.append(game)
 
         await asyncio.sleep(300)
         if not started:
