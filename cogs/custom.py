@@ -115,7 +115,7 @@ class Custom(commands.Cog):
             )
 
         class Modal(discord.ui.Modal, title=f'Edit a Cool Story'):
-            edited = discord.ui.TextInput(label=f'Edited version of "{name}" goes here', style=discord.TextStyle.long)
+            edited = discord.ui.TextInput(label=f'New version of your story goes here', style=discord.TextStyle.long)
 
             async def on_submit(self, modal_inter):
                 bot = modal_inter.client
