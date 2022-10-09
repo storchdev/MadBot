@@ -4,25 +4,80 @@ import discord
 import time
 from urllib.parse import urlencode
 from cogs.menus import ViewMenu
-from cogs.help import send_bot_help
+
+
+HELP_FOOTER_ICON = 'https://cdn.discordapp.com/icons/336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
+HELP_THUMBNAIL = 'https://c.tenor.com/omJbisofB98AAAAC/pepe-clown.gif'
+
+INVITE = 'https://discord.com/api/oauth2/authorize?client_id=742921922370600991&permissions=274877991936&scope=bot%20applications.commands'
+GITHUB = 'https://github.com/Stormtorch002/MadLibs'
+URBAN = 'https://api.urbandictionary.com/v0/define'
+TOP_GG = 'https://top.gg/bot/742921922370600991/vote'
+SUPPORT = 'https://discord.gg/fDjtZYW'
 
 
 class Misc(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.ICON = 'https://media.discordapp.net/attachments/742973400636588056/745710912257916950/159607234227809532.png'
-        self.INVITE = 'https://discord.com/api/oauth2/authorize?client_id=742921922370600991&permissions=274877991936&scope=bot%20applications.commands'
-        self.GITHUB = 'https://github.com/Stormtorch002/MadLibs'
-        self.URBAN = 'https://api.urbandictionary.com/v0/define'
-        self.FOOTER_ICON = 'https://cdn.discordapp.com/icons/336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
-        self.TOP_GG = 'https://top.gg/bot/742921922370600991/vote'
-        self.cooldowns = []
 
     @app_commands.command(name='help')
     async def help_command(self, interaction):
         """Shows all the commands."""
-        await send_bot_help(interaction)
+        embed = discord.Embed(
+            title='MadLibs Commands',
+            color=interaction.user.color,
+            description='Hello! I am a bot made by **Stormtorch#1128**! '
+                        'Commands are listed below.'
+        ).set_footer(
+            text=f'Default templates: redkid.net\nMade with discord.py v{discord.__version__}',
+            icon_url=HELP_FOOTER_ICON
+        ).set_thumbnail(
+            url=HELP_THUMBNAIL
+        )
+        cogs = {
+            'Playing MadLibs': [
+                'madlibs',
+                'custom',
+                'history',
+                'pos',
+            ],
+            'Other': [
+                'feedback',
+                'invite',
+                'vote',
+                'support',
+                'about',
+                'ping',
+                'urban'
+            ]
+        }
+
+        for cog, names in cogs.items():
+            lines = []
+
+            for name in names:
+                for cmd in interaction.client.app_commands:
+                    if cmd.name.startswith(name):
+                        lines.append(f'</{cmd.name}:{cmd.id}>')
+                        break 
+
+            cmds = '\n'.join(lines)
+            embed.add_field(name=cog, value=cmds)
+
+        links = {
+            'Add MadLibs': INVITE,
+            'Support': SUPPORT,
+            'Vote': TOP_GG,
+            'Source': GITHUB
+        }
+
+        view = discord.ui.View()
+        for name, url in links.items():
+            button = discord.ui.Button(label=name, url=url)
+            view.add_item(button)
+
+        await interaction.response.send_message(embed=embed, view=view)
 
     @app_commands.command()
     @app_commands.describe(feedback='the feedback to send')
@@ -37,6 +92,7 @@ class Misc(commands.Cog):
         )
         embed.set_author(name=str(interaction.user), icon_url=str(interaction.user.avatar.with_format('png')))
         embed.set_footer(text=f'Guild ID: {interaction.guild.id}')
+        
         await self.bot.get_channel(765759417010225192).send(embed=embed)
         await interaction.response.send_message(':thumbsup: Your feedback has been sent!')
 
@@ -44,13 +100,19 @@ class Misc(commands.Cog):
     async def invite(self, interaction):
         """Gives the link to invite the bot."""
 
-        await interaction.send(f'<{self.INVITE}>')
+        await interaction.response.send_message(f'<{INVITE}>')
 
     @app_commands.command()
     async def support(self, interaction):
         """Gives the link to the support server."""
 
-        await interaction.response.send_message('https://discord.gg/fDjtZYW')
+        await interaction.response.send_message(SUPPORT)
+
+    @app_commands.command()
+    async def vote(self, inter):
+        """Sends the link to vote for the bot on top.gg."""
+
+        await inter.response.send_message(F'{TOP_GG}\n\n**Thanks for your support!**')
 
     @app_commands.command()
     async def about(self, interaction):
@@ -102,7 +164,7 @@ class Misc(commands.Cog):
     async def urban(self, interaction, word: str):
         """Looks up a word in the urban dictionary"""
 
-        async with self.bot.session.get(self.URBAN + '?' + urlencode({'term': word})) as resp:
+        async with self.bot.session.get(URBAN + '?' + urlencode({'term': word})) as resp:
             if resp.status != 200:
                 return await interaction.response.send_message(f':no_entry: `{resp.status}` Something went wrong...')
             data = await resp.json()
@@ -130,16 +192,6 @@ class Misc(commands.Cog):
         view = ViewMenu(interaction, embeds)
         view.message = await interaction.response.send_message(embed=embeds[0], view=view)
         await view.wait()
-
-    # @commands.group(invoke_without_command=True)
-    # @commands.is_owner()
-    # async def sql(self, interaction, *, query):
-    #     """Nothing to see here."""
-    #     try:
-    #         status = await self.bot.db.execute(query)
-    #     except Exception as error:
-    #         return await interaction.response.send_message(f'```diff\n- {error}```')
-    #     await interaction.response.send_message(f'```sql\n{status}```')
 
 
 async def setup(bot):

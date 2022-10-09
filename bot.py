@@ -31,7 +31,12 @@ class MadLibsBot(commands.Bot):
         self.owner_ids = [718475543061987329]
 
     async def setup_hook(self):
+        print(f'{bot.user} has connected to Discord.')
+        await self.loop.create_task(self.setup_task())
 
+    async def setup_task(self):
+        await self.wait_until_ready()
+        
         for cog in COGS:
             await self.load_extension(cog)
             print(f'Loaded {cog}')
@@ -40,8 +45,7 @@ class MadLibsBot(commands.Bot):
         self.session = aiohttp.ClientSession()
         self.owner = await self.fetch_user(self.owner_ids[0])
         self.db = await db.connect()
-
-        print('Ready')
+        self.app_commands = await self.tree.fetch_commands()
 
 
 bot = MadLibsBot()
@@ -56,6 +60,7 @@ async def inter_check(interaction):
         return False
 
     return True
+
 bot.tree.interaction_check = inter_check
 
 
