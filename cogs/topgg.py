@@ -38,7 +38,7 @@ class TopGG(commands.Cog, name='top.gg', description='Nothing much here. Just vo
     @post_guild_count.before_loop
     async def wait_until_hour(self):
         now = datetime.datetime.now().astimezone()
-        next_run = now.replace(minute=0, second=0)
+        next_run = now.replace(hour=0, minute=0, second=0)
 
         if next_run < now:
             next_run += datetime.timedelta(hours=1)
