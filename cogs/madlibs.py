@@ -88,7 +88,25 @@ class Game:
         self.main_view.clear_items()
         await self.main_view.message.edit(view=self.main_view)
 
+async def madlibs_check(interaction):
+    bot = interaction.client
+    query = 'SELECT max_games FROM settings WHERE guild_id = $1'
+    row = await bot.db.fetchrow(query, interaction.guild.id)
+    
+    if row is None:
+        limit = 1 
+    else:
+        limit = row['max_games']
+    num_games = len([game for game in current_games if game.channel_id == interaction.channel.id])
+    if num_games >= limit:
+        await interaction.response.send_message(
+            f':no_entry: There is a limit of `{limit}` concurrent games per channel. An admin can override this setting.',
+            ephemeral=True
+        )
+        return False 
 
+    return True
+    
 class MadLibs(commands.Cog):
 
     def __init__(self, bot):
@@ -96,14 +114,18 @@ class MadLibs(commands.Cog):
         self.speech = pos_dict
 
     @app_commands.command()
+    @app_commands.check(madlibs_check)
     async def madlibs(self, interaction):
-        """Starts a MadLibs game with you as the host."""
+        """Starts a Mad Libs game with you as the host."""
 
-        if any(game.interaction.channel == interaction.channel for game in current_games):
-            return await interaction.response.send_message(
-                f':no_entry: There is already a game taking place in {interaction.channel.mention}.',
-                ephemeral=True
-            )
+        query = 'SELECT max_players, time_limit FROM settings WHERE guild_id = $1'
+        row = await self.bot.db.fetchrow(query, interaction.guild.id)
+        if row is None:
+            max_players = 10 
+            time_limit = 45
+        else:
+            max_players = row['max_players']
+            time_limit = row['time_limit']
 
         participants = [interaction.user]
         game = None
@@ -139,12 +161,12 @@ class MadLibs(commands.Cog):
                     user = participants[0]
                 except IndexError:
                     await game.cancel()
-                    return await interaction.channel.send(f':no_entry: Game was abandoned by all players.')
+                    return await interaction.channel.send(f':warning: Game was abandoned by all players.')
 
                 n = 'n' if vowel.match(blank) else ''
                 hint = ' (NOT ENDING IN "ING")' if blank.lower() == 'verb' else ''
 
-                dots = discord.ui.View(timeout=45)
+                dots = discord.ui.View(timeout=time_limit)
                 dots_btn = discord.ui.Button(label='\U0001f4ac', style=discord.ButtonStyle.blurple)
                 received = None
 
@@ -273,6 +295,11 @@ class MadLibs(commands.Cog):
         async def join_callback(join_i):
             u = join_i.user
             if u not in participants:
+                if len(participants) >= max_players:
+                    return await join_i.response.send_message(
+                        f':no_entry: Sorry, there is a limit of {max_players} players per game!',
+                        ephemeral=True
+                    )
                 participants.append(u)
                 await join_i.response.send_message(f':wave: {u.mention} has joined the game!')
             else:

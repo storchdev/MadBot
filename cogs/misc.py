@@ -9,7 +9,7 @@ from cogs.menus import ViewMenu
 HELP_FOOTER_ICON = 'https://cdn.discordapp.com/icons/336642139381301249/3aa641b21acded468308a37eef43d7b3.png'
 HELP_THUMBNAIL = 'https://c.tenor.com/omJbisofB98AAAAC/pepe-clown.gif'
 
-INVITE = 'https://discord.com/api/oauth2/authorize?client_id=742921922370600991&permissions=274877991936&scope=bot%20applications.commands'
+INVITE = 'https://discord.com/api/oauth2/authorize?client_id=1059565201457946655&permissions=274877991936&scope=bot%20applications.commands'
 GITHUB = 'https://github.com/Stormtorch002/MadLibs'
 URBAN = 'https://api.urbandictionary.com/v0/define'
 TOP_GG = 'https://top.gg/bot/742921922370600991/vote'
@@ -38,9 +38,16 @@ class Misc(commands.Cog):
         cogs = {
             'Playing MadLibs': [
                 'madlibs',
-                'custom',
                 'history',
-                'pos',
+                'pos'
+            ],
+            'Custom Stories': [
+                'custom add',
+                'custom edit',
+                'custom delete',
+                'custom list',
+                'custom info',
+                'custom import'
             ],
             'Other': [
                 'feedback',
@@ -53,13 +60,25 @@ class Misc(commands.Cog):
             ]
         }
 
+        if interaction.user.guild_permissions.administrator:
+            cogs['Settings (Admin Only)'] = [
+                'time-limit',
+                'max-players',
+                'max-games',
+                'whitelisted-channels add',
+                'whitelisted-channels remove',
+                'whitelisted-channels enable',
+                'whitelisted-channels disable',
+                'whitelisted-channels list'
+            ]
+
         for cog, names in cogs.items():
             lines = []
 
             for name in names:
                 for cmd in interaction.client.app_commands:
-                    if cmd.name.startswith(name):
-                        lines.append(f'</{cmd.name}:{cmd.id}>')
+                    if name.startswith(cmd.name):
+                        lines.append(f'</{name}:{cmd.id}>')
                         break 
 
             cmds = '\n'.join(lines)
@@ -92,7 +111,7 @@ class Misc(commands.Cog):
         )
         embed.set_author(name=str(interaction.user), icon_url=str(interaction.user.avatar.with_format('png')))
         embed.set_footer(text=f'Guild ID: {interaction.guild.id}')
-        
+
         await self.bot.get_channel(765759417010225192).send(embed=embed)
         await interaction.response.send_message(':thumbsup: Your feedback has been sent!')
 
@@ -169,9 +188,8 @@ class Misc(commands.Cog):
                 return await interaction.response.send_message(f':no_entry: `{resp.status}` Something went wrong...')
             data = await resp.json()
 
-        try:
-            data = data['list']
-        except (KeyError, IndexError):
+        data = data['list']
+        if len(data) == 0:
             return await interaction.response.send_message(f':no_entry: Definition not found.')
 
         embeds = []

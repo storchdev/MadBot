@@ -16,7 +16,9 @@ COGS = (
     'cogs.madlibs',
     'cogs.misc',
     'cogs.custom',
-    'jishaku'
+    'jishaku',
+    'cogs.admin',
+    # 'cogs.topgg'
 )
 
 
@@ -32,7 +34,7 @@ class MadLibsBot(commands.Bot):
 
     async def setup_hook(self):
         print(f'{bot.user} has connected to Discord.')
-        await self.loop.create_task(self.setup_task())
+        self.loop.create_task(self.setup_task())
 
     async def setup_task(self):
         await self.wait_until_ready()
@@ -68,6 +70,8 @@ bot.tree.interaction_check = inter_check
 @commands.is_owner()
 @bot.command()
 async def sync(ctx):
+    for cmd in bot.tree.get_commands():
+        cmd.guild_only = True 
     await bot.tree.sync()
     await ctx.message.add_reaction('\u2705')
 

@@ -28,7 +28,6 @@ class Listeners(commands.Cog):
                 f'Please try again in **{wait}**.',
                 ephemeral=True
             )
-
         else:
             etype = type(error)
             trace = error.__traceback__

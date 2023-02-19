@@ -1,4 +1,4 @@
-from discord import app_commands as slash
+from discord import app_commands
 import discord
 from discord.ext import commands
 import time
@@ -10,7 +10,7 @@ class Custom(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    group = slash.Group(name='custom', description='Lets you manage custom-made templates in this server.')
+    group = app_commands.Group(name='custom', description='Lets you manage custom-made templates in this server.')
 
     @group.command(name='add')
     async def custom_add(self, interaction):
@@ -61,7 +61,7 @@ class Custom(commands.Cog):
         await interaction.response.send_modal(Modal())
 
     @group.command(name='delete')
-    @slash.describe(name='The name of the story to delete')
+    @app_commands.describe(name='The name of the story to delete')
     async def custom_delete(self, interaction, name: str):
         """Deletes an existing custom template from the server."""
 
@@ -91,7 +91,7 @@ class Custom(commands.Cog):
         )
 
     @group.command(name='edit')
-    @slash.describe(
+    @app_commands.describe(
         name='The name of the story to edit'
     )
     async def custom_edit(self, interaction, name: str):
@@ -168,7 +168,7 @@ class Custom(commands.Cog):
         )
 
     @group.command(name='info')
-    @slash.describe(name='The name of the story to lookup')
+    @app_commands.describe(name='The name of the story to lookup')
     async def custom_info(self, interaction, name: str):
         """Gets info on a custom template."""
 
@@ -205,7 +205,7 @@ class Custom(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @group.command(name='import')
-    @slash.describe(
+    @app_commands.describe(
         guild_id='The ID of the server to import the story from',
         name='The name of the copied story in this server'
     )
