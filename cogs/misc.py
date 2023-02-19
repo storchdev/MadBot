@@ -10,9 +10,9 @@ HELP_FOOTER_ICON = 'https://cdn.discordapp.com/icons/336642139381301249/3aa641b2
 HELP_THUMBNAIL = 'https://c.tenor.com/omJbisofB98AAAAC/pepe-clown.gif'
 
 INVITE = 'https://discord.com/api/oauth2/authorize?client_id=1059565201457946655&permissions=274877991936&scope=bot%20applications.commands'
-GITHUB = 'https://github.com/Stormtorch002/MadLibs'
+GITHUB = 'https://github.com/Stormtorch002/MadBot'
 URBAN = 'https://api.urbandictionary.com/v0/define'
-TOP_GG = 'https://top.gg/bot/742921922370600991/vote'
+TOP_GG = 'https://top.gg/bot/1059565201457946655/vote'
 SUPPORT = 'https://discord.gg/fDjtZYW'
 
 
