@@ -145,7 +145,7 @@ class MadLibs(commands.Cog):
             if not name:
                 await game.cancel()
                 await story_view.message.edit(
-                    f':alarm_clock: You spent too long selecting a story. Game canceled.',
+                    content=f':alarm_clock: You spent too long selecting a story. Game canceled.',
                     embed=None, view=None
                 )
                 return
