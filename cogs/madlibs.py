@@ -390,11 +390,11 @@ class MadLibs(commands.Cog):
 
         if storyname:
             query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
-                    'WHERE guild_id = $1 AND name = $2'
+                    'WHERE guild_id = $1 AND name = $2 ORDER BY played_at DESC'
             rows = await self.bot.db.fetch(query, interaction.guild.id, storyname)
         else:
             query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
-                    'WHERE guild_id = $1'
+                    'WHERE guild_id = $1 ORDER BY played_at DESC'
             rows = await self.bot.db.fetch(query, interaction.guild.id)
 
         if not rows:
