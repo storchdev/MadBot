@@ -4,3 +4,4 @@ An original Discord bot that lets you play Mad Libs™ with your friends (or by 
 Note: My code can be messy and I'm still a child, so if you want to ~~roast~~ review me, you can send comments here or by using the `/feedback` command.
 ## Inviting
 You can invite MadBot [here](https://discord.com/api/oauth2/authorize?client_id=1059565201457946655&permissions=274877991936&scope=bot%20applications.commands)
+By inviting, you agree to the [terms of service](https://gist.github.com/Stormtorch002 8b01831986bd090b44aea47caf746f82#file-madbot_tos-md)
