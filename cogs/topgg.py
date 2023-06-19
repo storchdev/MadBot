@@ -19,7 +19,7 @@ class TopGG(commands.Cog, name='top.gg', description='Nothing much here. Just vo
         }
 
         resp = await self.bot.session.post(endpoint, data=fields, headers=headers)
-        return resp.status 
+        return resp
 
     async def cog_load(self):
         self.post_guild_count.start()
