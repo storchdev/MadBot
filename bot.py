@@ -18,11 +18,11 @@ COGS = (
     'cogs.custom',
     'jishaku',
     'cogs.admin',
-    # 'cogs.topgg'
+    'cogs.topgg'
 )
 
 
-class MadLibsBot(commands.Bot):
+class MadBot(commands.Bot):
 
     def __init__(self):
         super().__init__(
@@ -49,8 +49,11 @@ class MadLibsBot(commands.Bot):
         self.db = await db.connect()
         self.app_commands = await self.tree.fetch_commands()
 
+        self.incognito = [row['user_id'] for row in await self.db.fetch('SELECT user_id FROM user_settings')]
+        
 
-bot = MadLibsBot()
+
+bot = MadBot()
 
 
 async def inter_check(interaction):

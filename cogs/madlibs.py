@@ -3,7 +3,7 @@ from discord import app_commands
 import discord
 import time
 import asyncio
-from cogs.menus import TemplatesMenu, YesNo, ViewMenu
+from cogs.menus import TemplatesMenu, ShareYesNo, HistoryMenu
 from cogs.utils import capitalize, placeholder, vowel
 from cogs.dicts import pos_dict, defaults_dict
 import json
@@ -266,10 +266,9 @@ class MadLibs(commands.Cog):
             pages.append(embedded_story)
 
             if interaction.user.id in pids:
-                yesno = YesNo(interaction, name, final_story, participants)
+                yesno = ShareYesNo(interaction, name, final_story, participants)
                 yesno.message = await interaction.channel.send(
-                    f'{interaction.user.mention}, would you like to send this result to my support server? '
-                    'I will not be sharing anything except your usernames and the final product.',
+                    f'{interaction.user.mention}, would you like to send this story to my support server?',
                     view=yesno
                 )
                 await yesno.wait()
@@ -389,11 +388,11 @@ class MadLibs(commands.Cog):
         """Allows you to view all past games that have occured in this server."""
 
         if storyname:
-            query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
+            query = 'SELECT * FROM plays ' \
                     'WHERE guild_id = $1 AND name = $2 ORDER BY played_at DESC'
             rows = await self.bot.db.fetch(query, interaction.guild.id, storyname)
         else:
-            query = 'SELECT channel_id, participants, final_story, played_at, name FROM plays ' \
+            query = 'SELECT * FROM plays ' \
                     'WHERE guild_id = $1 ORDER BY played_at DESC'
             rows = await self.bot.db.fetch(query, interaction.guild.id)
 
@@ -417,11 +416,10 @@ class MadLibs(commands.Cog):
             )
             participants = []
             for user_id in json.loads(story['participants']):
-                user = self.bot.get_user(user_id)
-                if user:
-                    participants.append(user.mention)
+                if user_id in self.bot.incognito:
+                    participants.append('Anonymous User')
                 else:
-                    participants.append(f'<@{user_id}>')
+                    participants.append(f'<@!{user_id}>')
             mentions = ', '.join(participants)
             embed.add_field(name='Participants', value=mentions)
 
@@ -430,11 +428,29 @@ class MadLibs(commands.Cog):
                 embed.add_field(name='Channel', value=ch)
 
             embed.add_field(name='Played At', value=f'<t:{story["played_at"]}:R>')
-
+            
+            embed.set_footer(text=f'ID: {story["id"]}')
             embeds.append(embed)
 
-        view = ViewMenu(interaction, embeds, timeout=None)
+        view = HistoryMenu(interaction, embeds, timeout=None)
         view.message = await interaction.response.send_message(embed=embeds[0], view=view)
+
+    @app_commands.command()
+    @app_commands.describe(mode='on or off')
+    async def incognito(self, interaction, mode: typing.Literal['on', 'off']):
+        """When this mode is on, your name will not be displayed on past games."""
+        if mode == 'off':
+            if interaction.user.id in self.bot.incognito:
+                self.bot.incognito.remove(interaction.user.id)
+                query = 'DELETE FROM user_settings WHERE user_id = $1'
+                await self.bot.db.execute(query, interaction.user.id)
+            await interaction.response.send_message(':thumbsup: Successfully turned off incognito mode.')
+        else:
+            if interaction.user.id not in self.bot.incognito:
+                self.bot.incognito.append(interaction.user.id)
+                query = 'INSERT INTO user_settings (user_id) VALUES ($1)'
+                await self.bot.db.execute(query, interaction.user.id)
+            await interaction.response.send_message(':thumbsup: Successfully turned on incognito mode.')
 
     @app_commands.command()
     @app_commands.describe(part='The part of speech to lookup')

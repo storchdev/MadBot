@@ -109,7 +109,7 @@ class Misc(commands.Cog):
             description=f'`{feedback}`',
             color=interaction.user.color
         )
-        embed.set_author(name=str(interaction.user), icon_url=str(interaction.user.avatar.with_format('png')))
+        embed.set_author(name=str(interaction.user), icon_url=str(interaction.user.display_avatar.with_format('png')))
         embed.set_footer(text=f'Guild ID: {interaction.guild.id}')
 
         await self.bot.get_channel(765759417010225192).send(embed=embed)

@@ -34,6 +34,11 @@ async def _create_tables(con):
             "time_limit" INTEGER DEFAULT 45,
             "max_players" INTEGER DEFAULT 10,
             "max_games" INTEGER DEFAULT 1
+        )''',
+        '''CREATE TABLE IF NOT EXISTS user_settings (
+            "id" SERIAL PRIMARY KEY,
+            "user_id" BIGINT UNIQUE,
+            "incognito" BOOLEAN
         )'''
     ]
 

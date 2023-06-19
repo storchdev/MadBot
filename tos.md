@@ -6,6 +6,7 @@ By inviting MadBot, using any command of MadBot, or participating in any MadBot 
 
 Do not use MadBot in any way that:
 - Violates Discord TOS
+- Infringes on any written copyrighted material
 - Reveals passwords, real addresses, IP addresses, etc.
 - Could be used to dox or threaten personal privacy/security of any user
 - Contains or promotes discriminatory language toward any race, gender, or religion

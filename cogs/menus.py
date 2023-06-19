@@ -13,6 +13,17 @@ class ViewMenu(discord.ui.View):
         return self.interaction.user == interaction.user
 
     async def update_view(self, interaction):
+        if len(self.embeds) == 0:
+            await interaction.response.edit_message(
+                view=None,
+                embed=None,
+                content=':no_entry: No past games found.'
+            )
+            self.stop()
+            return 
+        if self.page > len(self.embeds) - 1:
+            self.page = len(self.embeds) - 1 
+
         embed = self.embeds[self.page]
         await interaction.response.edit_message(embed=embed)
 
@@ -93,6 +104,27 @@ class ViewMenu(discord.ui.View):
         modal.on_submit = on_submit
 
         await interaction.response.send_modal(modal)
+
+class HistoryMenu(ViewMenu):
+    def __init__(self, interaction, embeds, *, timeout=180):
+        super().__init__(interaction, embeds, timeout=timeout)
+        if interaction.user.guild_permissions.administrator:
+
+            async def callback(binter):
+                rowid = int(self.embeds[self.page].footer.text.split()[1])
+                query = 'DELETE FROM plays WHERE id = $1'
+                await interaction.client.db.execute(query, rowid)
+                self.embeds.pop(self.page)
+                await self.update_view(binter)
+
+            button = discord.ui.Button(
+                label='Delete Entry',
+                style=discord.ButtonStyle.gray,
+                emoji='\u274c'
+            )
+            button.callback = callback 
+            self.add_item(button)
+
 
 
 class TemplatesMenu(ViewMenu):
@@ -184,7 +216,7 @@ class TemplatesMenu(ViewMenu):
         await self.update_view(interaction)
 
 
-class YesNo(discord.ui.View):
+class ShareYesNo(discord.ui.View):
 
     def __init__(self, interaction, name, story, participants):
         self.interaction = interaction
@@ -214,7 +246,15 @@ class YesNo(discord.ui.View):
             description=f'```{self.story}```',
             color=discord.Colour.orange()
         )
-        embed.add_field(name='Participants', value=', '.join(u.name for u in self.participants))
+        # for each one check if they opted
+        plist = []
+        for u in self.participants:
+            if u.id in self.bot.incognito:
+                plist.append('Anonymous User')
+            else:
+                plist.append(u.global_name)
+            
+        embed.add_field(name='Participants', value=', '.join(plist))
         await ch.send(embed=embed)
 
         self.remove_item(self.no)
@@ -230,4 +270,31 @@ class YesNo(discord.ui.View):
         self.remove_item(self.yes)
 
         await interaction.response.edit_message(view=self)
+        self.stop()
+
+class ClearHistoryYesNo(discord.ui.View):
+
+    def __init__(self, interaction):
+        self.interaction = interaction
+        self.bot = interaction.client
+        self.message = None
+        super().__init__(timeout=30)
+
+    async def interaction_check(self, interaction):
+        return interaction.user == self.interaction.user
+
+    async def on_timeout(self):
+        await self.message.edit(view=None, content=":thumbsup: Cancelled clearing history.")
+        self.stop()
+
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green)
+    async def yes(self, interaction, button):
+        query = 'DELETE FROM plays WHERE guild_id = $1'
+        await self.bot.db.execute(query, interaction.guild.id)
+        await interaction.response.edit_message(view=None, content=":thumbsup: All game history in this server has been cleared.")
+        self.stop()
+
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.gray)
+    async def no(self, interaction, button):
+        await interaction.response.edit_message(view=None, content=":thumbsup: Cancelled clearing history.")
         self.stop()
