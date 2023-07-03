@@ -25,9 +25,9 @@ class Misc(commands.Cog):
     async def help_command(self, interaction):
         """Shows all the commands."""
         embed = discord.Embed(
-            title='MadLibs Commands',
+            title='MadBot Commands',
             color=interaction.user.color,
-            description='Hello! I am a bot made by **Stormtorch#1128**! '
+            description='Hello! I am a bot made by **stormtorch**! '
                         'Commands are listed below.'
         ).set_footer(
             text=f'Default templates: redkid.net\nMade with discord.py v{discord.__version__}',
@@ -36,10 +36,11 @@ class Misc(commands.Cog):
             url=HELP_THUMBNAIL
         )
         cogs = {
-            'Playing MadLibs': [
+            'Playing Mad Libs': [
                 'madlibs',
                 'history',
-                'pos'
+                'pos',
+                'incognito'
             ],
             'Custom Stories': [
                 'custom add',
@@ -65,11 +66,8 @@ class Misc(commands.Cog):
                 'time-limit',
                 'max-players',
                 'max-games',
-                'whitelisted-channels add',
-                'whitelisted-channels remove',
-                'whitelisted-channels enable',
-                'whitelisted-channels disable',
-                'whitelisted-channels list'
+                'reset-settings',
+                'clear-history'
             ]
 
         for cog, names in cogs.items():
@@ -85,7 +83,7 @@ class Misc(commands.Cog):
             embed.add_field(name=cog, value=cmds)
 
         links = {
-            'Add MadLibs': INVITE,
+            'Add MadBot': INVITE,
             'Support': SUPPORT,
             'Vote': TOP_GG,
             'Source': GITHUB
