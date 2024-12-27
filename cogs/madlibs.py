@@ -228,7 +228,7 @@ class MadLibs(commands.Cog):
                 dots_btn.callback = callback
                 dots.add_item(dots_btn)
                 message = await interaction.channel.send(
-                    f'{user.mention}, press the button to enter a{n} **{blank}{hint}**. ({progress}/{total})',
+                    f'{maybe_mention(user)}, press the button to enter a{n} **{blank}{hint}**. ({progress}/{total})',
                     view=dots
                 )
 
@@ -319,7 +319,7 @@ class MadLibs(commands.Cog):
                         ephemeral=True
                     )
                 participants.append(u)
-                await join_i.response.send_message(f':wave: {maybe_mention(U)} has joined the game!')
+                await join_i.response.send_message(f':wave: {maybe_mention(u)} has joined the game!')
             else:
                 await join_i.response.send_message(
                     f':no_entry: You are already in the game.',
@@ -366,7 +366,7 @@ class MadLibs(commands.Cog):
             if game.task:
                 game.task.cancel()
 
-            await cancel_i.response.send_message(':octagonal_sign: Game canceled.', ephemeral=True)
+            await cancel_i.response.send_message(':octagonal_sign: **Game canceled.**')
 
         button.callback = join_callback
         button2.callback = leave_callback

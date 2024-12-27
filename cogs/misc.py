@@ -68,7 +68,8 @@ class Misc(commands.Cog):
                 'settings max-games',
                 'settings reset',
                 'settings show-entered',
-                'clear-history'
+                'settings mention-players',
+                'clear-history',
             ]
 
         for cog, names in cogs.items():
