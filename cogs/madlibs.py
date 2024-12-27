@@ -118,7 +118,7 @@ class MadLibs(commands.Cog):
     async def madlibs(self, interaction):
         """Starts a Mad Libs game with you as the host."""
 
-        query = 'SELECT max_players, time_limit FROM settings WHERE guild_id = $1'
+        query = 'SELECT max_players, time_limit, show_entered FROM settings WHERE guild_id = $1'
         row = await self.bot.db.fetchrow(query, interaction.guild.id)
         if row is None:
             max_players = 10 
@@ -203,9 +203,15 @@ class MadLibs(commands.Cog):
 
                             received = str(self.word)
                             dots.stop()
-                            await modal_i.response.send_message(
-                                f':thumbsup: {modal_i.user.mention} entered `{received}`'
-                            )
+
+                            if row['show_entered']:
+                                await modal_i.response.send_message(
+                                    f':thumbsup: {modal_i.user.mention} entered `{received}`'
+                                )
+                            else:
+                                await modal_i.response.send_message(
+                                    f':thumbsup: {modal_i.user.mention} entered their word.'
+                                )
 
                     modal = Modal()
                     await word_i.response.send_modal(modal)
@@ -218,7 +224,11 @@ class MadLibs(commands.Cog):
                 )
 
                 await dots.wait()
-                await message.delete()
+
+                try:
+                    await message.delete()
+                except discord.NotFound:
+                    pass 
 
                 if received:
                     participants.pop(0)
@@ -326,7 +336,7 @@ class MadLibs(commands.Cog):
 
             u = start_i.user
             if u != interaction.user:
-                return await interaction.response.defer()
+                return await start_i.response.defer()
 
             started = True
             view.remove_item(button3)
@@ -342,7 +352,7 @@ class MadLibs(commands.Cog):
         async def cancel_callback(cancel_i):
             u = cancel_i.user
             if u != interaction.user:
-                return await interaction.response.defer()
+                return await cancel_i.response.defer()
             await game.cancel()
             if game.task:
                 game.task.cancel()
@@ -447,7 +457,7 @@ class MadLibs(commands.Cog):
             await interaction.response.send_message(':thumbsup: Successfully turned off incognito mode.')
         else:
             if interaction.user.id not in self.bot.incognito:
-                self.bot.incognito.append(interaction.user.id)
+                self.bot.incognito.add(interaction.user.id)
                 query = 'INSERT INTO user_settings (user_id) VALUES ($1)'
                 await self.bot.db.execute(query, interaction.user.id)
             await interaction.response.send_message(':thumbsup: Successfully turned on incognito mode.')

@@ -63,10 +63,11 @@ class Misc(commands.Cog):
 
         if interaction.user.guild_permissions.administrator:
             cogs['Settings (Admin Only)'] = [
-                'time-limit',
-                'max-players',
-                'max-games',
-                'reset-settings',
+                'settings time-limit',
+                'settings max-players',
+                'settings max-games',
+                'settings reset',
+                'settings show-entered',
                 'clear-history'
             ]
 

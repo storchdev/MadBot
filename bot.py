@@ -1,3 +1,7 @@
+from typing import Any
+
+from discord.client import Client
+from discord.interactions import Interaction
 from config import TOKEN
 import db
 import discord
@@ -5,10 +9,10 @@ from discord.ext import commands
 import time
 import aiohttp
 import asyncio
-import logging
+from discord import app_commands 
 
 
-logging.basicConfig(level=logging.INFO)
+discord.utils.setup_logging()
 
 intents = discord.Intents.default()
 COGS = (
@@ -21,6 +25,19 @@ COGS = (
     'cogs.topgg'
 )
 
+class Tree(app_commands.CommandTree):
+    def __init__(self, client: Client, *, fallback_to_global: bool = True):
+        super().__init__(client, fallback_to_global=fallback_to_global)
+    
+    async def interaction_check(self, interaction):
+        if not interaction.channel.permissions_for(interaction.guild.me).embed_links:
+            await interaction.response.send_message(
+                f':no_entry: Ensure that I have the `Embed Links` permission in this channel.',
+                ephemeral=True
+            )
+            return False
+        return True
+
 
 class MadBot(commands.Bot):
 
@@ -28,7 +45,8 @@ class MadBot(commands.Bot):
         super().__init__(
             command_prefix='/',
             intents=intents,
-            allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True)
+            allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True),
+            tree_cls=Tree
         )
         self.owner_ids = [718475543061987329]
 
@@ -39,34 +57,20 @@ class MadBot(commands.Bot):
     async def setup_task(self):
         await self.wait_until_ready()
         
-        for cog in COGS:
-            await self.load_extension(cog)
-            print(f'Loaded {cog}')
-
         self.up_at = time.time()
         self.session = aiohttp.ClientSession()
         self.owner = await self.fetch_user(self.owner_ids[0])
         self.db = await db.connect()
         self.app_commands = await self.tree.fetch_commands()
 
-        self.incognito = [row['user_id'] for row in await self.db.fetch('SELECT user_id FROM user_settings')]
-        
+        for cog in COGS:
+            await self.load_extension(cog)
+            print(f'Loaded {cog}')
+
+        self.incognito = set(row['user_id'] for row in await self.db.fetch('SELECT user_id FROM user_settings'))
 
 
 bot = MadBot()
-
-
-async def inter_check(interaction):
-    if not interaction.channel.permissions_for(interaction.guild.me).embed_links:
-        await interaction.response.send_message(
-            f':no_entry: Ensure that I have the `Embed Links` permission in this channel.',
-            ephemeral=True
-        )
-        return False
-
-    return True
-
-bot.tree.interaction_check = inter_check
 
 
 @commands.dm_only()
