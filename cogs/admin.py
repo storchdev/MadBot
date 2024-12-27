@@ -93,6 +93,22 @@ class Admin(commands.Cog):
             f':thumbsup: **SETTINGS:** Show entered words set to `{mode}`.'
         )
 
+    @app_commands.default_permissions()
+    @app_commands.describe(mode='on or off')
+    @settings_cmd.command(name='mention-players')
+    async def mention_players(self, interaction, mode: Literal['on', 'off']):
+        """Toggles whether or not players should be pinged in the bot's info messages during a game."""
+    
+        if mode == 'on':
+            mode = True 
+        else:
+            mode = False
+        
+        await self.upsert(interaction.guild, 'mention_players', mode)
+        await interaction.response.send_message(
+            f':thumbsup: **SETTINGS:** Mention players set to `{mode}`.'
+        )
+
 
         
 async def setup(bot):

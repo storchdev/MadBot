@@ -10,6 +10,7 @@ import json
 import typing
 
 
+
 def generate_embeds(names, templates, *, default=True):
     if default:
         title = 'Default Templates'
@@ -118,14 +119,22 @@ class MadLibs(commands.Cog):
     async def madlibs(self, interaction):
         """Starts a Mad Libs game with you as the host."""
 
-        query = 'SELECT max_players, time_limit, show_entered FROM settings WHERE guild_id = $1'
+        query = 'SELECT max_players, time_limit, show_entered, mention_players FROM settings WHERE guild_id = $1'
         row = await self.bot.db.fetchrow(query, interaction.guild.id)
         if row is None:
             max_players = 10 
             time_limit = 45
+            mention_players = True
         else:
             max_players = row['max_players']
             time_limit = row['time_limit']
+            mention_players = row['mention_players']
+        
+        def maybe_mention(user):
+            if mention_players:
+                return user.mention
+            else:
+                return f'**{user.display_name}**'
 
         participants = [interaction.user]
         game = None
@@ -206,11 +215,11 @@ class MadLibs(commands.Cog):
 
                             if row['show_entered']:
                                 await modal_i.response.send_message(
-                                    f':thumbsup: {modal_i.user.mention} entered `{received}`'
+                                    f':thumbsup: {maybe_mention(modal_i.user)} entered `{received}`'
                                 )
                             else:
                                 await modal_i.response.send_message(
-                                    f':thumbsup: {modal_i.user.mention} entered their word.'
+                                    f':thumbsup: {maybe_mention(modal_i.user)} entered their word.'
                                 )
 
                     modal = Modal()
@@ -241,7 +250,7 @@ class MadLibs(commands.Cog):
                 else:
                     participants.remove(user)
                     await interaction.channel.send(
-                        f':wave: \u23f0 {user.mention} has been removed from the game due to inactivity.'
+                        f':wave: \u23f0 {maybe_mention(user)} has been removed from the game due to inactivity.'
                     )
 
             await game.cancel()
@@ -278,7 +287,7 @@ class MadLibs(commands.Cog):
             if interaction.user.id in pids:
                 yesno = ShareYesNo(interaction, name, final_story, participants)
                 yesno.message = await interaction.channel.send(
-                    f'{interaction.user.mention}, would you like to send this story to my support server?',
+                    f'{maybe_mention(interaction.user)}, would you like to send this story to my support server?',
                     view=yesno
                 )
                 await yesno.wait()
@@ -310,7 +319,7 @@ class MadLibs(commands.Cog):
                         ephemeral=True
                     )
                 participants.append(u)
-                await join_i.response.send_message(f':wave: {u.mention} has joined the game!')
+                await join_i.response.send_message(f':wave: {maybe_mention(U)} has joined the game!')
             else:
                 await join_i.response.send_message(
                     f':no_entry: You are already in the game.',
@@ -329,7 +338,7 @@ class MadLibs(commands.Cog):
                 )
 
             participants.remove(u)
-            await leave_i.response.send_message(f':wave: {u.mention} has left the game.')
+            await leave_i.response.send_message(f':wave: {maybe_mention(u)} has left the game.')
 
         async def start_callback(start_i):
             nonlocal started
@@ -388,7 +397,7 @@ class MadLibs(commands.Cog):
                 
             await game.cancel()
             await interaction.followup.send(
-                f':alarm_clock: {interaction.user.mention}\n'
+                f':alarm_clock: {maybe_mention(interaction.user)}\n'
                 f'5 minutes have passed and you have not started the game, so I have canceled it.'
             )
 
